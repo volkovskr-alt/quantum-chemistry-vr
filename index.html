@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Quantum Chemistry VR Sanctuary</title>
+  <!-- Load A-Frame Open-Source WebXR Engine -->
+  <script src="https://aframe.io"></script>
+  <!-- Load A-Frame Environment for a clean laboratory backdrop -->
+  <script src="https://unpkg.com"></script>
+</head>
+<body>
+
+  <a-scene xr-mode-ui="enabled: true">
+    
+    <!-- Asset Management System: Pre-loads your open-source OBJ files -->
+    <a-assets>
+      <a-asset-item id="chem-structure" src="structure.obj"></a-asset-item>
+      <a-asset-item id="pos-orbital" src="PositiveOrbital.obj"></a-asset-item>
+      <a-asset-item id="neg-orbital" src="NegativeOrbital.obj"></a-asset-item>
+    </a-assets>
+
+    <!-- Sanctuary Environment Setup -->
+    
+
+    <!-- Calibrated Lighting to maintain your lovely gloss and specularity effects -->
+    
+    
+
+    <!-- The Integrated Quantum Stage -->
+    
+      
+      <!-- 1. The Central Molecular Framework Mesh -->
+      
+      
+
+      <!-- 2. The Positive Orbital Component (Your Orange Lobe) -->
+      <!-- Opacity sets your exact OPS = 0.73 scaling parameter natively -->
+      
+      
+
+      <!-- 3. The Negative Orbital Component (Your Darker Cyan Lobe) -->
+      
+      
+
+      <!-- Auto-rotation loop to demonstrate spatial geometry to the selection board -->
+      <a-animation attribute="rotation" dur="20000" to="0 360 0" repeat="indefinite" easing="linear"></a-animation>
+    
+
+    <!-- Camera and Vision Controls -->
+    
+      
+        <a-cursor color="#00a3a3" scale="0.5 0.5 0.5"></a-cursor>
+      
+    
+
+  </a-scene>
+</body>
+</html>
