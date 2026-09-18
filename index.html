@@ -2,51 +2,40 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Quantum Chemistry VR Sanctuary</title>
+  <title>Quantum Chemistry VR Sanctuary (Dropbox Stream)</title>
   <!-- Load A-Frame Open-Source WebXR Engine -->
   <script src="https://aframe.io"></script>
   <!-- Load A-Frame Environment for a clean laboratory backdrop -->
   <script src="https://unpkg.com"></script>
+  <!-- Load the official FBX Loader component to read the Blender layout -->
+  <script src="https://jsdelivr.net"></script>
 </head>
 <body>
 
   <a-scene xr-mode-ui="enabled: true">
     
-    <!-- Asset Management System: Pre-loads your open-source OBJ files -->
+    <!-- Asset Management System -->
     <a-assets>
-      <a-asset-item id="chem-structure" src="structure.obj"></a-asset-item>
-      <a-asset-item id="pos-orbital" src="PositiveOrbital.obj"></a-asset-item>
-      <a-asset-item id="neg-orbital" src="NegativeOrbital.obj"></a-asset-item>
+      <!-- MANDATORY PROTOCOL: Paste your exact raw Dropbox link inside the src quotes below -->
+      <!-- Ensure the link ends strictly with ?raw=1 to bypass the preview paywall page -->
+      <a-asset-item id="hb-model" src="https://dropbox.com"></a-asset-item>
     </a-assets>
 
-    <!-- Sanctuary Environment Setup -->
+    <!-- Sanctuary Environment Setup: Elegant, clean, and low-compute cost -->
     
 
-    <!-- Calibrated Lighting to maintain your lovely gloss and specularity effects -->
+    <!-- Calibrated Lighting to preserve your lovely gloss and specularity effects -->
     
     
 
-    <!-- The Integrated Quantum Stage -->
+    <!-- The Integrated Integrated Quantum Stage -->
+    <!-- Pulls your FBX binary matrix data straight into the browser's RAM -->
     
-      
-      <!-- 1. The Central Molecular Framework Mesh -->
-      
-      
-
-      <!-- 2. The Positive Orbital Component (Your Orange Lobe) -->
-      <!-- Opacity sets your exact OPS = 0.73 scaling parameter natively -->
-      
-      
-
-      <!-- 3. The Negative Orbital Component (Your Darker Cyan Lobe) -->
-      
-      
-
       <!-- Auto-rotation loop to demonstrate spatial geometry to the selection board -->
-      <a-animation attribute="rotation" dur="20000" to="0 360 0" repeat="indefinite" easing="linear"></a-animation>
+      <a-animation attribute="rotation" dur="25000" to="0 360 0" repeat="indefinite" easing="linear"></a-animation>
     
 
-    <!-- Camera and Vision Controls -->
+    <!-- Camera and Universal Navigation Controls -->
     
       
         <a-cursor color="#00a3a3" scale="0.5 0.5 0.5"></a-cursor>
@@ -54,5 +43,38 @@
     
 
   </a-scene>
+
+  <script>
+    // Technical traversing function executed the millisecond the model loads
+    // This scans your polygon vertices and maps your custom chemistry color scheme
+    document.querySelector('[fbx-model]').addEventListener('model-loaded', function (evt) {
+      const model = evt.detail.model;
+      model.traverse(function (object) {
+        if (object.isMesh) {
+          const name = object.name.toLowerCase();
+          
+          // Match and color your Positive Orbital Lobe (Orange)
+          // Opacity matches your OPS = 0.73 scaling parameter natively
+          if (name.includes('positive') || name.includes('pos')) {
+            object.material.color.setHex(0xff941a); 
+            object.material.opacity = 0.73;
+            object.material.transparent = true;
+          } 
+          // Match and color your Negative Orbital Lobe (Darker Cyan)
+          else if (name.includes('negative') || name.includes('neg')) {
+            object.material.color.setHex(0x00a3a3); 
+            object.material.opacity = 0.73;
+            object.material.transparent = true;
+          } 
+          // Default baseline color for the molecular structural framework
+          else {
+            object.material.color.setHex(0x6e6e6e); 
+            object.material.roughness = 0.2;
+            object.material.metalness = 0.1;
+          }
+        }
+      });
+    });
+  </script>
 </body>
 </html>
