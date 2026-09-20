@@ -33,7 +33,7 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Чтение библиотек движка строго локально из вашего репозитория -->
+    <!-- Полностью локальное считывание библиотек 3D движка -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
@@ -70,7 +70,7 @@
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
-        let activeResolution = 40;
+        let activeResolution = 40; // Базовое разрешение интерполяции лопастей
         let atomMeshGroup = new THREE.Group();
 
         function init3D() {
@@ -78,7 +78,6 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x05050a);
 
-            // Оптимальный зум камеры для полного охвата октаэдра
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(45, 45, 85);
 
@@ -121,14 +120,12 @@
 
             animate();
             
-            // CLEAN WARM-UP TRIGGER: Wait exactly 500ms for browser canvas graphics pipelines
-            // to register in memory, completely eliminating runtime race condition hangs.
             setTimeout(() => {
-                fetchAndParseCube(ORBITAL_FILES[0]);
+                fetchAndParseCube(ORBITAL_FILES);
             }, 500);
         }
 
-        // --- 3. FORTRAN-NEUTRAL VOLUMETRIC DATA PARSER ---
+        // --- 3. FORTRAN-NEUTRAL ASYMMETRIC GRID DATA PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -142,14 +139,10 @@
                 
                 statusEl.textContent = "Translating calculation coefficients...";
                 
-                // CRITICAL FORTRAN BUGFIX: Convert legacy exponential exponents indicators (D) 
-                // globally to modern JavaScript float standards indicators (E) natively.
+                // Fortran scientific double-precision notation formatting handler (D -> E)
                 const cleanText = rawText.replace(/D([+-])/gi, 'E\$1');
-                
-                // Convert text structure into a flat continuous tokens grid stream array array map
                 const tokens = cleanText.trim().split(/\s+/);
                 
-                // Clear molecular leftovers from past spatial visual loops completely
                 while(atomMeshGroup.children.length > 0){
                     atomMeshGroup.remove(atomMeshGroup.children);
                 }
@@ -158,7 +151,7 @@
                 let densityValuesStartPtr = 0;
                 let atomsFoundCounter = 0;
 
-                // Step 1: Scan numbers track sequence to extract grid dimensions
+                // Step 1: Scan numbers sequence to parse asymmetric grid metrics row indices
                 let meshGridsLocated = 0;
                 for (let i = 2; i < tokens.length; i++) {
                     let tokenVal = tokens[i];
@@ -179,7 +172,7 @@
                     }
                 }
 
-                // Step 2: Linear Spectroscopic Geometry Loader
+                // Step 2: Linear Spectroscopic Geometry Reconstruction Engine
                 let scanPtr = densityValuesStartPtr;
                 while (scanPtr < tokens.length && atomsFoundCounter < 7) {
                     let currentInt = parseInt(tokens[scanPtr]);
@@ -196,10 +189,10 @@
                         let atomRadius = 0.8;
 
                         if (currentInt === 27) {
-                            elementColor = 0x8a2be2; // Purple Cobalt core node alignment
+                            elementColor = 0x8a2be2; // Royal Purple theme color for center Cobalt node
                             atomRadius = 1.4;
                         } else if (currentInt === 17) {
-                            elementColor = 0x32cd32; // Neon Green Cl coordination crown
+                            elementColor = 0x32cd32; // Neon Green crown for Chlorine fields
                             atomRadius = 1.0;
                         }
 
@@ -215,7 +208,7 @@
                     scanPtr++;
                 }
 
-                // Step 3: Stream pointer alignment tracker to isolate clean electron values
+                // Step 3: Stream pointer intercept to clean trailing meta parameters
                 while (scanPtr < tokens.length) {
                     let valStr = tokens[scanPtr];
                     if (valStr.indexOf('.') !== -1) {
@@ -227,7 +220,7 @@
                     scanPtr++;
                 }
 
-                // Step 4: Map mathematical calculations matrix tokens straight into density arrays
+                // Step 4: Map mathematical calculations matrix straight into dynamic tracking field
                 let volumetricValuesGrid = [];
                 for (let k = scanPtr; k < tokens.length; k++) {
                     let densityValue = parseFloat(tokens[k]);
@@ -253,34 +246,36 @@
             }
         }
 
-        // --- 4. HARDWARE ISOSURFACE CALCULATOR (MARCHING CUBES) ---
+        // --- 4. DYNAMIC NON-SYMMETRIC MARCHING CUBES LOOP ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
             if (marchingCubesController) scene.remove(marchingCubesController);
             
             const isovalue = parseFloat(document.getElementById('isovalue-slider').value);
+            const res = activeResolution; // Static 40x40x40 interpolation layer space
             
-            let gridMaxRes = Math.max(currentVolumetricData.nx, currentVolumetricData.ny, currentVolumetricData.nz);
-            let targetRes = Math.min(gridMaxRes, 40); 
-            
-            marchingCubesController = new THREE.MarchingCubes(targetRes, posMaterial, true, true, 100000);
+            marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
             marchingCubesController.position.set(0, 0, 0);
             marchingCubesController.scale.set(45, 45, 45); 
             
-            marchingCubesController.init(targetRes);
+            marchingCubesController.init(res);
             
             const data = currentVolumetricData.data;
-            const nx = currentVolumetricData.nx;
-            const ny = currentVolumetricData.ny;
-            const nz = currentVolumetricData.nz;
+            const nx = currentVolumetricData.nx; // Extracted dynamically (79)
+            const ny = currentVolumetricData.ny; // Extracted dynamically (84)
+            const nz = currentVolumetricData.nz; // Extracted dynamically (78)
             
-            for (let x = 1; x < targetRes - 1; x++) {
-                for (let y = 1; y < targetRes - 1; y++) {
-                    for (let z = 1; z < targetRes - 1; z++) {
-                        let dataX = Math.floor((x / targetRes) * nx);
-                        let dataY = Math.floor((y / targetRes) * ny);
-                        let dataZ = Math.floor((z / targetRes) * nz);
+            // ASYMMETRIC PROPORTIONAL MAPPING: Interpolates data entries non-symmetrically 
+            // across the 3D buffer grid bounds, avoiding memory boundary leaks.
+            for (let x = 1; x < res - 1; x++) {
+                for (let y = 1; y < res - 1; y++) {
+                    for (let z = 1; z < res - 1; z++) {
+                        let dataX = Math.floor((x / res) * nx);
+                        let dataY = Math.floor((y / res) * ny);
+                        let dataZ = Math.floor((z / res) * nz);
+                        
+                        // Strict row-major index mapping layout for asymmetric 3D data files configurations
                         let index = dataX * (ny * nz) + dataY * nz + dataZ;
                         
                         let val = data[index] || 0;
