@@ -33,13 +33,13 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Полностью локальное чтение 3D-ядра с вашего репозитория -->
+    <!-- Полностью локальное считывание библиотек 3D движка -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
 
     <script>
-        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ СПИСКА ОРБИТАЛЕЙ ---
+        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ВЫПАДАЮЩЕГО СПИСКА ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -124,7 +124,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]);
         }
 
-        // --- 3. DROPBOX DATA FETCH PIPE & UNBREAKABLE .AT() ROW PARSER ---
+        // --- 3. DROPBOX FETCH PIPE & INDESTRUCTIBLE CLEAN ROW PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -137,27 +137,23 @@
                 const text = await response.text();
                 
                 statusEl.textContent = "Parsing cube data matrix...";
-                // Clean lines and isolate spaces
+                
+                // Completely clean empty gaps and isolate legitimate text rows safely
                 const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
                 
-                if (lines.length < 6) throw new Error("File formatting too short.");
+                if (lines.length < 6) throw new Error("File structure invalid.");
 
-                // Use the protected .at() method to grab exact row variables safely
-                const atomLine = lines.at(2);
-                const xLine = lines.at(3);
-                const yLine = lines.at(4);
-                const zLine = lines.at(5);
-
-                const atomCount = parseInt(atomLine.split(/\s+/).at(0));
-                const countX = parseInt(xLine.split(/\s+/).at(0));
-                const countY = parseInt(yLine.split(/\s+/).at(0));
-                const countZ = parseInt(zLine.split(/\s+/).at(0));
+                // Isolate spatial counts securely using array rows
+                const atomCount = parseInt(lines[2].split(/\s+/)[0]);
+                const countX = parseInt(lines[3].split(/\s+/)[0]);
+                const countY = parseInt(lines[4].split(/\s+/)[0]);
+                const countZ = parseInt(lines[5].split(/\s+/)[0]);
                 
                 let dataStartLine = 6 + Math.abs(atomCount);
                 let values = [];
                 
                 for (let i = dataStartLine; i < lines.length; i++) {
-                    let lineVals = lines.at(i).split(/\s+/);
+                    let lineVals = lines[i].split(/\s+/);
                     for (let j = 0; j < lineVals.length; j++) {
                         if (lineVals[j] !== "") {
                             let parsedFloat = parseFloat(lineVals[j]);
