@@ -61,7 +61,7 @@
         const statusEl = document.getElementById('status');
         statusEl.textContent = "Interface ready. Routing 3D engine...";
 
-        // --- 2. ПОСЛЕДОВАТЕЛЬНЫЙ ВОДОПАДНЫЙ ЗАГРУЗЧИК CDN ---
+        // --- 2. ПОСЛЕДОВАТЕЛЬНЫЙ ЗАГРУЗЧИК БЕЗ CLOUDFLARE ---
         const cdnRoutes = [
             [
                 "https://unpkg.com",
@@ -69,8 +69,8 @@
                 "https://unpkg.com"
             ],
             [
-                "https://cloudflare.com",
-                "https://cloudflare.com",
+                "https://jsdelivr.net",
+                "https://jsdelivr.net",
                 "https://jsdelivr.net"
             ]
         ];
@@ -100,13 +100,13 @@
                 
                 script.onload = () => {
                     scriptIndex++;
-                    loadNextScript(); // Загружаем следующий файл строго по порядку
+                    loadNextScript();
                 };
 
                 script.onerror = () => {
-                    console.warn(`Route ${routeIndex + 1} failed at script ${scriptIndex}. Switching paths...`);
+                    console.warn(`Route ${routeIndex + 1} failed. Switching paths...`);
                     routeIndex++;
-                    loadCDNRoute(); // При любой сетевой ошибке сбрасываем и пробуем следующий CDN целиком
+                    loadCDNRoute();
                 };
 
                 document.head.appendChild(script);
@@ -173,7 +173,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]);
         }
 
-        // --- 4. СЕТЕВОЙ ПОТОК И ПАРСЕР ТЕКСТОВЫХ МАТРИЦ .CUB ---
+        // --- 4. DATA EXTRACTION AND GRID METRICS PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -188,11 +188,15 @@
                 statusEl.textContent = "Parsing cube data matrix...";
                 const lines = text.split('\n');
                 
-                // Исправленный построчный парсинг заголовков геометрической сетки
-                const atomCount = parseInt(lines[2].trim().split(/\s+/)[0]);
-                const countX = parseInt(lines[3].trim().split(/\s+/)[0]);
-                const countY = parseInt(lines[4].trim().split(/\s+/)[0]);
-                const countZ = parseInt(lines[5].trim().split(/\s+/)[0]);
+                const atomLine = lines[2].trim().split(/\s+/);
+                const xLine = lines[3].trim().split(/\s+/);
+                const yLine = lines[4].trim().split(/\s+/);
+                const zLine = lines[5].trim().split(/\s+/);
+
+                const atomCount = parseInt(atomLine[0]);
+                const countX = parseInt(xLine[0]);
+                const countY = parseInt(yLine[0]);
+                const countZ = parseInt(zLine[0]);
                 
                 let dataStartLine = 6 + Math.abs(atomCount);
                 let values = [];
@@ -200,7 +204,7 @@
                 for (let i = dataStartLine; i < lines.length; i++) {
                     let lineVals = lines[i].trim().split(/\s+/);
                     for (let j = 0; j < lineVals.length; j++) {
-                        if (lineVals[j] !== "") {
+                        if (lineVals[j] !== "" && lineVals[j] !== undefined) {
                             values.push(parseFloat(lineVals[j]));
                         }
                     }
@@ -223,7 +227,7 @@
             }
         }
 
-        // --- 5. АЛГОРИТМ MARCHING CUBES ДЛЯ ТРЕХМЕРНЫХ ЛОПАСТЕЙ ---
+        // --- 5. VISUAL ISOSURFACE MATRIX CALCULATION ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -269,7 +273,6 @@
             }
         }
         
-        // Запуск последовательной проверки и загрузки CDN сетей
         loadCDNRoute();
     </script>
 </body>
