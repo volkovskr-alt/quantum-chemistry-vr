@@ -28,19 +28,18 @@
             <input type="range" id="isovalue-slider" min="0.001" max="0.1" step="0.001" value="0.02">
             <span id="slider-val" style="font-size: 11px; color: #8a9eff;">0.020</span>
         </div>
-        <div id="status">Initializing autonomous engine...</div>
+        <div id="status">Initializing 100% autonomous engine...</div>
     </div>
 
     <div id="canvas-container"></div>
 
-    <!-- Loads the 3D core locally from your own repository folder -->
+    <!-- Read ALL 3D engine assets locally from your own repository folder -->
     <script src="js/three.min.js"></script>
-    <!-- Lightweight navigation/math utility helpers are read from unpkg -->
-    <script src="https://unpkg.com"></script>
-    <script src="https://unpkg.com"></script>
+    <script src="js/OrbitControls.js"></script>
+    <script src="js/MarchingCubes.js"></script>
 
     <script>
-        // --- 1. INSTANT DROPDOWN INITIALIZER ---
+        // --- 1. DROPDOWN MATRIX INITIALIZER ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -65,9 +64,8 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Local core engine ready. Launching canvas...";
+        statusEl.textContent = "All local cores found. Launching canvas...";
 
-        // --- 2. GLOBAL VIEWPORT VARIABLE STATE ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
@@ -125,7 +123,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]);
         }
 
-        // --- 3. DROPBOX DATA FETCH PIPE & EXACT GRID METRICS PARSER ---
+        // --- 3. DROPBOX CONCURRENT FILE READ & METRICS PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -140,16 +138,11 @@
                 statusEl.textContent = "Parsing cube data matrix...";
                 const lines = text.split('\n');
                 
-                // Read spatial metadata by targeting exact rows from your calculated file array headers
-                const atomLine = lines[2].trim().split(/\s+/);
-                const xLine = lines[3].trim().split(/\s+/);
-                const yLine = lines[4].trim().split(/\s+/);
-                const zLine = lines[5].trim().split(/\s+/);
-
-                const atomCount = parseInt(atomLine[0]);
-                const countX = parseInt(xLine[0]);
-                const countY = parseInt(yLine[0]);
-                const countZ = parseInt(zLine[0]);
+                // Read geometry bounds strictly from lines 2, 3, 4, 5 of standard cube file format
+                const atomCount = parseInt(lines[2].trim().split(/\s+/)[0]);
+                const countX = parseInt(lines[3].trim().split(/\s+/)[0]);
+                const countY = parseInt(lines[4].trim().split(/\s+/)[0]);
+                const countZ = parseInt(lines[5].trim().split(/\s+/)[0]);
                 
                 let dataStartLine = 6 + Math.abs(atomCount);
                 let values = [];
@@ -180,7 +173,7 @@
             }
         }
 
-        // --- 4. SURFACE CONTOUR CALCULATOR (MARCHING CUBES) ---
+        // --- 4. HARDWARE ISOSURFACE MATRIX CALCULATION (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -226,7 +219,7 @@
             }
         }
         
-        // Execute clean autonomous runtime engine
+        // Fire initialization sequence
         init3D();
     </script>
 </body>
