@@ -33,7 +33,7 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Локальные модули движка -->
+    <!-- Локальные модули движка из вашего репозитория -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
@@ -64,7 +64,7 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous core active. Aligning molecular vectors...";
+        statusEl.textContent = "Autonomous core active. Executing element scan...";
 
         // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
@@ -103,7 +103,7 @@
             posMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444, transparent: true, opacity: 0.65, side: THREE.DoubleSide, shininess: 40 });
             negMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff, transparent: true, opacity: 0.65, side: THREE.DoubleSide, shininess: 40 });
 
-            // Add our dynamic geometry container group directly to the canvas view
+            // Add our molecular geometry container group directly to the canvas view
             scene.add(atomMeshGroup);
 
             selector.addEventListener('change', (e) => fetchAndParseCube(e.target.value));
@@ -123,7 +123,7 @@
             fetchAndParseCube(ORBITAL_FILES); 
         }
 
-        // --- 3. NEGATIVE-FLAG COMPENSATED G09 STREAM PARSER ---
+        // --- 3. SPECTROSCOPIC INTELLIGENT CUBE STREAM PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -135,91 +135,104 @@
                 if (!response.ok) throw new Error("Local dataset stream read failure.");
                 const text = await response.text();
                 
-                statusEl.textContent = "Decoding molecular structure...";
+                statusEl.textContent = "Scanning atomic element configurations...";
                 
-                // Break file flatly by any white spaces or line breaks globally
+                // Convert the file text layout into a flat numerical array stream cleanly
                 const tokens = text.trim().split(/\s+/);
                 
-                // Bypass comment lines to catch the atom count row element
-                let ptr = 0;
-                let atomCountRaw = NaN;
-                while (ptr < tokens.length) {
-                    let val = parseInt(tokens[ptr]);
-                    if (!isNaN(val) && tokens[ptr].indexOf('.') === -1 && tokens[ptr] !== "0") {
-                        atomCountRaw = val;
+                // Clear out old molecular remnants from past degenerate runs completely
+                while(atomMeshGroup.children.length > 0){
+                    atomMeshGroup.remove(atomMeshGroup.children);
+                }
+
+                // Explicit grid resolution indicators defaults
+                let countX = 40, countY = 40, countZ = 40;
+                let densityValuesStartPtr = 0;
+                let atomsFoundCounter = 0;
+
+                // --- 4. STREAMING ELEMENT INTERCEPTOR LOOP ---
+                // First pass: locate the voxel resolutions hidden inside rows 3, 4, 5
+                let meshGridsLocated = 0;
+                for (let i = 2; i < tokens.length; i++) {
+                    let tokenVal = tokens[i];
+                    if (tokenVal.indexOf('.') !== -1) continue; // Skip comments and decimal points
+                    
+                    let intVal = parseInt(tokenVal);
+                    if (isNaN(intVal) || intVal === 0) continue;
+
+                    // Skip the atom count identifier row (-7)
+                    if (Math.abs(intVal) === 7 && meshGridsLocated === 0) continue;
+
+                    meshGridsLocated++;
+                    if (meshGridsLocated === 1) countX = Math.abs(intVal);
+                    if (meshGridsLocated === 2) countY = Math.abs(intVal);
+                    if (meshGridsLocated === 3) {
+                        countZ = Math.abs(intVal);
+                        // The actual molecular structure blocks start 4 elements further down the array
+                        densityValuesStartPtr = i + 4; 
                         break;
                     }
-                    ptr++;
-                }
-                
-                if (isNaN(atomCountRaw)) throw new Error("Could not parse G09 header index track.");
-
-                // Structural evaluation: absolute value gives total atom count (7)
-                let numAtoms = Math.abs(atomCountRaw);
-                
-                // Step 2: Read voxel bounds counts cleanly from token metrics steps
-                ptr++; const countX = Math.abs(parseInt(tokens[ptr]));
-                ptr += 4; const countY = Math.abs(parseInt(tokens[ptr]));
-                ptr += 4; const countZ = Math.abs(parseInt(tokens[ptr]));
-                
-                // ADVANCED ALIGNMENT BUGFIX: If atomCount is negative, Gaussian appends 3 additional 
-                // data floats per axis row describing coordinate orientations matrices.
-                if (atomCountRaw < 0) {
-                    ptr += 4; // Safely shift pointers past multi-variable CP2K/G09 vector grids offset
-                } else {
-                    ptr += 4; // Standard offset track fallback
                 }
 
-                // Clean out old visual artifacts from past degenerate layouts completely
-                while(atomMeshGroup.children.length > 0){
-                    atomMeshGroup.remove(atomMeshGroup.children[0]);
-                }
-
-                // --- 4. ACCURATE SYNCHRONIZED GEOMETRY CONSTRUCTOR ---
-                for (let i = 0; i < numAtoms; i++) {
-                    let atomicNumber = parseInt(tokens[ptr++]);
-                    let atomicCharge = parseFloat(tokens[ptr++]);
+                // Second pass: Scan the stream specifically for elements numbers (27 and 17)
+                let scanPtr = densityValuesStartPtr;
+                while (scanPtr < tokens.length && atomsFoundCounter < 7) {
+                    let currentInt = parseInt(tokens[scanPtr]);
                     
-                    // Multiply positions by coordinate scalar ratio to display distance accurately
-                    let posX = parseFloat(tokens[ptr++]) * 6.0;
-                    let posY = parseFloat(tokens[ptr++]) * 6.0;
-                    let posZ = parseFloat(tokens[ptr++]) * 6.0;
+                    if (currentInt === 27 || currentInt === 17) {
+                        atomsFoundCounter++;
+                        
+                        // Step over the element tracker and the atomic valence charge parameter token
+                        scanPtr += 2; 
+                        
+                        // Extract structural coordinates positions cleanly and apply zoom scaling
+                        let posX = parseFloat(tokens[scanPtr++]) * 6.0;
+                        let posY = parseFloat(tokens[scanPtr++]) * 6.0;
+                        let posZ = parseFloat(tokens[scanPtr++]) * 6.0;
 
-                    let elementColor = 0xccd7e6; 
-                    let atomRadius = 0.8;
+                        let elementColor = 0xccd7e6; 
+                        let atomRadius = 0.8;
 
-                    if (atomicNumber === 27) { 
-                        // Royal Purple styling mapped specifically for your center Cobalt core
-                        elementColor = 0x8a2be2; 
-                        atomRadius = 1.4;
-                    } else if (atomicNumber === 17) { 
-                        // High-contrast vibrant Neon Green styling for your 6 Chlorine ligand fields
-                        elementColor = 0x32cd32; 
-                        atomRadius = 1.0;
+                        if (currentInt === 27) {
+                            elementColor = 0x8a2be2; // Royal Purple layout for center Cobalt core
+                            atomRadius = 1.4;
+                        } else if (currentInt === 17) {
+                            elementColor = 0x32cd32; // Vibrant Neon Green for your 6 Chlorine fields
+                            atomRadius = 1.0;
+                        }
+
+                        let geom = new THREE.SphereGeometry(atomRadius, 32, 32);
+                        let mat = new THREE.MeshPhongMaterial({ color: elementColor, shininess: 80, specular: 0x444444 });
+                        let mesh = new THREE.Mesh(geom, mat);
+                        
+                        mesh.position.set(posX, posY, posZ);
+                        atomMeshGroup.add(mesh);
+                        
+                        continue;
                     }
+                    scanPtr++;
+                }
+                                // Step over the trailing Gaussian matrix records indicator row (1 59)
+                while (scanPtr < tokens.length) {
+                    let checkVal = tokens[scanPtr];
+                    if (checkVal === "1" && tokens[scanPtr + 1] === "59") {
+                        scanPtr += 2;
+                        break;
+                    }
+                    // Safe guard backup fallback break point when reaching small decimal density coordinates
+                    if (checkVal.indexOf('.') !== -1 && parseFloat(checkVal) < 1.0 && parseFloat(checkVal) > -1.0) {
+                        break;
+                    }
+                    scanPtr++;
+                }
 
-                    let geom = new THREE.SphereGeometry(atomRadius, 32, 32);
-                    let mat = new THREE.MeshPhongMaterial({ color: elementColor, shininess: 80, specular: 0x444444 });
-                    let mesh = new THREE.Mesh(geom, mat);
-                    
-                    mesh.position.set(posX, posY, posZ);
-                    atomMeshGroup.add(mesh);
-                }
-                
-                // Step 5: Bypassing the trailing molecular orbital indicator values row (e.g., 1  59)
-                let trailingOrbsRecord = parseInt(tokens[ptr]);
-                if (!isNaN(trailingOrbsRecord) && tokens[ptr].indexOf('.') === -1) {
-                    ptr += 2; 
-                }
-                
-                // Step 6: Map trailing numerical tokens flow directly into voxel densities matrix arrays
+                // --- 5. DENSITY DATA FIELD EXTRACTOR LOOP ---
                 let volumetricValuesGrid = [];
-                while (ptr < tokens.length) {
-                    let densityValue = parseFloat(tokens[ptr]);
+                for (let k = scanPtr; k < tokens.length; k++) {
+                    let densityValue = parseFloat(tokens[k]);
                     if (!isNaN(densityValue)) {
                         volumetricValuesGrid.push(densityValue);
                     }
-                    ptr++;
                 }
                 
                 currentVolumetricData = {
@@ -227,7 +240,7 @@
                     data: volumetricValuesGrid
                 };
                 
-                statusEl.textContent = "Rendering clean isosurfaces...";
+                statusEl.textContent = "Recalculating voxel grids...";
                 updateIsosurface();
                 statusEl.textContent = "Orbital Render Complete!";
                 statusEl.style.color = '#00ff66';
@@ -239,35 +252,36 @@
             }
         }
 
-        // --- 5. VISUAL CONTOUR DENSITY GRAPHIC ALGORITHM (MARCHING CUBES) ---
+        // --- 6. EXTRA-RESILIENT VOLUMETRIC CALCULATOR (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
             if (marchingCubesController) scene.remove(marchingCubesController);
             
             const isovalue = parseFloat(document.getElementById('isovalue-slider').value);
-            const res = activeResolution;
             
-            marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
+            // Dynamically scale mapping resolution constraints based on actual file counts arrays
+            let gridMaxRes = Math.max(currentVolumetricData.nx, currentVolumetricData.ny, currentVolumetricData.nz);
+            let targetRes = Math.min(gridMaxRes, 40); // Lock visual performance bounds safely
+            
+            marchingCubesController = new THREE.MarchingCubes(targetRes, posMaterial, true, true, 100000);
             marchingCubesController.position.set(0, 0, 0);
-            
-            // Set optimal spatial volumetric canvas footprint bounds scale
             marchingCubesController.scale.set(45, 45, 45); 
             
-            marchingCubesController.init(res);
+            marchingCubesController.init(targetRes);
             
             const data = currentVolumetricData.data;
             const nx = currentVolumetricData.nx;
             const ny = currentVolumetricData.ny;
             const nz = currentVolumetricData.nz;
             
-            // Clip boundary tracking layers to eliminate ugly edge plane visualization artifacts completely
-            for (let x = 1; x < res - 1; x++) {
-                for (let y = 1; y < res - 1; y++) {
-                    for (let z = 1; z < res - 1; z++) {
-                        let dataX = Math.floor((x / res) * nx);
-                        let dataY = Math.floor((y / res) * ny);
-                        let dataZ = Math.floor((z / res) * nz);
+            // Loop through coordinate matrices discarding shell grids to sweep away edge slicing block artifacts
+            for (let x = 1; x < targetRes - 1; x++) {
+                for (let y = 1; y < targetRes - 1; y++) {
+                    for (let z = 1; z < targetRes - 1; z++) {
+                        let dataX = Math.floor((x / targetRes) * nx);
+                        let dataY = Math.floor((y / targetRes) * ny);
+                        let dataZ = Math.floor((z / targetRes) * nz);
                         let index = dataX * (ny * nz) + dataY * nz + dataZ;
                         
                         let val = data[index] || 0;
