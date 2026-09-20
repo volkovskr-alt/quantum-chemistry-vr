@@ -1,80 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Quantum Chemistry VR Sanctuary (Dropbox Stream)</title>
-  <!-- Load A-Frame Graphics Engine from stable global repository -->
-  <script src="https://cloudflare.com"></script>
-  <!-- Load Environment Component from stable global mirror -->
-  <script src="https://jsdelivr.net"></script>
-  <!-- Load the official FBX Loader component to read the Blender layout -->
-  <script src="https://jsdelivr.net"></script>
+    <meta charset="UTF-8">
+    <title>Quantum Chemistry VR</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f4f4f9; color: #333; }
+        h1 { color: #24292e; }
+    </style>
 </head>
 <body>
-
-  <a-scene xr-mode-ui="enabled: true">
-    
-    <!-- Asset Management System -->
-    <a-assets>
-      <!-- MANDATORY PROTOCOL: Paste your exact raw Dropbox link inside the src quotes below -->
-      <!-- Ensure the link ends strictly with ?raw=1 to bypass the preview paywall page -->
-      <a-asset-item id="hb-model" src="https://www.dropbox.com/scl/fi/5qkmuz2jb78h5c6c49ln6/model.fbx?rlkey=3zdt0hynuftlhqw37ss6upivq&st=pabnvumb&raw=1"></a-asset-item>
-    </a-assets>
-
-    <!-- Sanctuary Environment Setup: Elegant, clean, and low-compute cost -->
-    
-
-    <!-- Calibrated Lighting to preserve your lovely gloss and specularity effects -->
-    
-    
-
-    <!-- The Integrated Integrated Quantum Stage -->
-    <!-- Pulls your FBX binary matrix data straight into the browser's RAM -->
-    
-      <!-- Auto-rotation loop to demonstrate spatial geometry to the selection board -->
-      <a-animation attribute="rotation" dur="25000" to="0 360 0" repeat="indefinite" easing="linear"></a-animation>
-    
-
-    <!-- Camera and Universal Navigation Controls -->
-    
-      
-        <a-cursor color="#00a3a3" scale="0.5 0.5 0.5"></a-cursor>
-      
-    
-
-  </a-scene>
-
-  <script>
-    // Technical traversing function executed the millisecond the model loads
-    // This scans your polygon vertices and maps your custom chemistry color scheme
-    document.querySelector('[fbx-model]').addEventListener('model-loaded', function (evt) {
-      const model = evt.detail.model;
-      model.traverse(function (object) {
-        if (object.isMesh) {
-          const name = object.name.toLowerCase();
-          
-          // Match and color your Positive Orbital Lobe (Orange)
-          // Opacity matches your OPS = 0.73 scaling parameter natively
-          if (name.includes('positive') || name.includes('pos')) {
-            object.material.color.setHex(0xff941a); 
-            object.material.opacity = 0.73;
-            object.material.transparent = true;
-          } 
-          // Match and color your Negative Orbital Lobe (Darker Cyan)
-          else if (name.includes('negative') || name.includes('neg')) {
-            object.material.color.setHex(0x00a3a3); 
-            object.material.opacity = 0.73;
-            object.material.transparent = true;
-          } 
-          // Default baseline color for the molecular structural framework
-          else {
-            object.material.color.setHex(0x6e6e6e); 
-            object.material.roughness = 0.2;
-            object.material.metalness = 0.1;
-          }
-        }
-      });
-    });
-  </script>
+    <h1>⚛️ Quantum Chemistry VR Sandbox</h1>
+    <p>Welcome! This WebGL/WebXR project is currently under active development.</p>
+    <p><em>Data processing is currently managed via VMD and Dropbox. Stay tuned for live browser rendering!</em></p>
 </body>
 </html>
