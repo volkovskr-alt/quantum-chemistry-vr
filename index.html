@@ -33,7 +33,7 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Полностью локальное считывание библиотек 3D движка -->
+    <!-- Локальные библиотеки 3D движка -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
@@ -64,13 +64,13 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous engine active. Anchoring visual grid...";
+        statusEl.textContent = "Autonomous engine active. Deploying 3D buffer...";
 
         // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
-        let activeResolution = 45; 
+        let activeResolution = 40; // Идеальный равносторонний куб 40x40x40
         let atomMeshGroup = new THREE.Group();
 
         function init3D() {
@@ -121,11 +121,11 @@
             animate();
             
             setTimeout(() => {
-                fetchAndParseCube(ORBITAL_FILES); 
+                fetchAndParseCube(ORBITAL_FILES[0]); 
             }, 300);
         }
 
-        // --- 3. ADAPTIVE GRID STRUCTURE AUTO-SCAN PARSER ---
+        // --- 3. HIGH-PERFORMANCE SYMMETRIC BUFFER MAPPED PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -139,6 +139,7 @@
                 
                 statusEl.textContent = "Translating calculation coefficients...";
                 
+                // Eradicate legacy Fortran scientific notation markers (D -> E)
                 const cleanText = rawText.replace(/D([+-])/gi, 'E\$1');
                 const tokens = cleanText.trim().split(/\s+/);
                 
@@ -146,33 +147,33 @@
                     atomMeshGroup.remove(atomMeshGroup.children);
                 }
 
-                // --- 4. INDEPENDENT SPECTRUM AUTO-SCAN ENGINE ---
-                let scanPtr = 0;
+                // Step 1: Scan numbers track sequence to extract header landmarks
+                let ptr = 0;
                 let atomCountRaw = NaN;
-                while (scanPtr < tokens.length) {
-                    let val = parseInt(tokens[scanPtr]);
-                    if (!isNaN(val) && tokens[scanPtr].indexOf('.') === -1 && tokens[scanPtr] !== "0") {
+                while (ptr < tokens.length) {
+                    let val = parseInt(tokens[ptr]);
+                    if (!isNaN(val) && tokens[ptr].indexOf('.') === -1 && tokens[ptr] !== "0") {
                         atomCountRaw = val;
                         break;
                     }
-                    scanPtr++;
+                    ptr++;
                 }
 
                 if (isNaN(atomCountRaw)) throw new Error("Could not parse dataset structural headers.");
                 let numAtoms = Math.abs(atomCountRaw);
 
-                scanPtr++;
+                ptr++;
                 let dimensions = [];
-                while (scanPtr < tokens.length && dimensions.length < 3) {
-                    let possibleDimToken = tokens[scanPtr];
+                while (ptr < tokens.length && dimensions.length < 3) {
+                    let possibleDimToken = tokens[ptr];
                     let intCheck = parseInt(possibleDimToken);
                     
                     if (!isNaN(intCheck) && possibleDimToken.indexOf('.') === -1 && intCheck > 0) {
                         dimensions.push(intCheck);
-                        scanPtr += 4; 
+                        ptr += 4; 
                         continue;
                     }
-                    scanPtr++;
+                    ptr++;
                 }
 
                 if (dimensions.length < 3) throw new Error("Invalid or cropped grid dimension paths mapping.");
@@ -181,28 +182,27 @@
                 const countY = dimensions[1];
                 const countZ = dimensions[2];
 
-                // --- 5. SYNCHRONIZED ATOMIC GEOMETRY LOADER ---
+                // Step 2: Linear Spectroscopic Geometry Loader
                 let atomsProcessed = 0;
-                while (scanPtr < tokens.length && atomsProcessed < numAtoms) {
-                    let currentTokenInt = parseInt(tokens[scanPtr]);
+                while (ptr < tokens.length && atomsProcessed < numAtoms) {
+                    let currentTokenInt = parseInt(tokens[ptr]);
                     
-                    if (currentTokenInt === 27 || currentIntToken === 17 || tokens[scanPtr] === "27" || tokens[scanPtr] === "17") {
-                        let detectedElement = parseInt(tokens[scanPtr]);
+                    if (currentTokenInt === 27 || currentTokenInt === 17) {
                         atomsProcessed++;
-                        scanPtr += 2; 
+                        ptr += 2; 
                         
-                        let posX = parseFloat(tokens[scanPtr++]) * 6.0;
-                        let posY = parseFloat(tokens[scanPtr++]) * 6.0;
-                        let posZ = parseFloat(tokens[scanPtr++]) * 6.0;
+                        let posX = parseFloat(tokens[ptr++]) * 6.0;
+                        let posY = parseFloat(tokens[ptr++]) * 6.0;
+                        let posZ = parseFloat(tokens[ptr++]) * 6.0;
 
                         let elementColor = 0xccd7e6; 
                         let atomRadius = 0.8;
 
-                        if (detectedElement === 27) {
-                            elementColor = 0x8a2be2; 
+                        if (currentTokenInt === 27) {
+                            elementColor = 0x8a2be2; // Royal Purple Cobalt
                             atomRadius = 1.4;
-                        } else if (detectedElement === 17) {
-                            elementColor = 0x32cd32; 
+                        } else if (currentTokenInt === 17) {
+                            elementColor = 0x32cd32; // Neon Green Chlorines
                             atomRadius = 1.0;
                         }
 
@@ -214,11 +214,11 @@
                         atomMeshGroup.add(mesh);
                         continue;
                     }
-                    scanPtr++;
+                    ptr++;
                 }
-                                // Step past the trailing records indicator labels (e.g. 1 59 or 1 1) securely
-                while (scanPtr < tokens.length) {
-                    let valStr = tokens[scanPtr];
+                               // Step past the trailing records indicator labels (e.g. 1 59 or 1 1) securely
+                while (ptr < tokens.length) {
+                    let valStr = tokens[ptr];
                     if (valStr.indexOf('.') !== -1) {
                         let parsedTest = parseFloat(valStr);
                         // True electron densities start when encountering values bounded smaller than 1.0
@@ -226,12 +226,12 @@
                             break; 
                         }
                     }
-                    scanPtr++;
+                    ptr++;
                 }
 
-                // --- 6. FIELD COEFFICIENTS DATA EXTRACTION ---
+                // --- 5. FIELD COEFFICIENTS DATA EXTRACTION ---
                 let volumetricValuesGrid = [];
-                for (let k = scanPtr; k < tokens.length; k++) {
+                for (let k = ptr; k < tokens.length; k++) {
                     let densityValue = parseFloat(tokens[k]);
                     if (!isNaN(densityValue)) {
                         volumetricValuesGrid.push(densityValue);
@@ -243,7 +243,7 @@
                     data: volumetricValuesGrid
                 };
                 
-                statusEl.textContent = "Recalculating sub-volume window...";
+                statusEl.textContent = "Interpolating grid matrices...";
                 updateIsosurface();
                 statusEl.textContent = "Orbital Render Complete!";
                 statusEl.style.color = '#00ff66';
@@ -255,14 +255,14 @@
             }
         }
 
-        // --- 7. HIGH-PERFORMANCE WINDOWED MARCHING CUBES LAYER ---
+        // --- 6. TRILINEAR INTERPOLATION MARCHING CUBES LAYER ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
             if (marchingCubesController) scene.remove(marchingCubesController);
             
             const isovalue = parseFloat(document.getElementById('isovalue-slider').value);
-            const res = activeResolution; // High definition 45 layout concentrated inside reaction coordinates
+            const res = activeResolution; // High resolution 40x40x40 symmetric grid
             
             marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
             marchingCubesController.position.set(0, 0, 0);
@@ -271,29 +271,63 @@
             marchingCubesController.init(res);
             
             const data = currentVolumetricData.data;
-            const nx = Math.abs(currentVolumetricData.nx); 
-            const ny = Math.abs(currentVolumetricData.ny); 
-            const nz = Math.abs(currentVolumetricData.nz); 
-            
-            // Sub-Volume focus mapping: restrict math evaluations strictly to the coordinate zone (35% to 65%)
-            for (let x = 1; x < res - 1; x++) {
-                for (let y = 1; y < res - 1; y++) {
-                    for (let z = 1; z < res - 1; z++) {
-                        
-                        let normX = 0.35 + (x / res) * 0.30;
-                        let normY = 0.35 + (y / res) * 0.30;
-                        let normZ = 0.35 + (z / res) * 0.30;
+            const nx = currentVolumetricData.nx; 
+            const ny = currentVolumetricData.ny; 
+            const nz = currentVolumetricData.nz; 
 
-                        let dataX = Math.floor(normX * nx);
-                        let dataY = Math.floor(normY * ny);
-                        let dataZ = Math.floor(normZ * nz);
+            // ASYMMETRIC TRILINEAR INTERPOLATION ENGINE: Maps the rectangular data grid 
+            // proportionally into the symmetric 3D coordinate space safely.
+            for (let x = 0; x < res; x++) {
+                for (let y = 0; y < res; y++) {
+                    for (let z = 0; z < res; z++) {
                         
-                        let index = dataX * (ny * nz) + dataY * nz + dataZ;
+                        // Map the cube index to a fractional coordinate within the asymmetric file bounds
+                        let fx = (x / (res - 1)) * (nx - 1);
+                        let fy = (y / (res - 1)) * (ny - 1);
+                        let fz = (z / (res - 1)) * (nz - 1);
                         
-                        if (index >= 0 && index < data.length) {
-                            let val = data[index] || 0;
-                            marchingCubesController.setValue(x, y, z, val);
-                        }
+                        // Isolate floor and ceiling bounding matrix steps
+                        let x0 = Math.floor(fx); let x1 = Math.min(x0 + 1, nx - 1);
+                        let y0 = Math.floor(fy); let y1 = Math.min(y0 + 1, ny - 1);
+                        let z0 = Math.floor(fz); let z1 = Math.min(z0 + 1, nz - 1);
+                        
+                        // Calculate tracking weight increments fractions
+                        let xd = fx - x0;
+                        let yd = fy - y0;
+                        let zd = fz - z0;
+                        
+                        // Core row-major offset calculations mapping
+                        let idx000 = x0 * (ny * nz) + y0 * nz + z0;
+                        let idx001 = x0 * (ny * nz) + y0 * nz + z1;
+                        let idx010 = x0 * (ny * nz) + y1 * nz + z0;
+                        let idx011 = x0 * (ny * nz) + y1 * nz + z1;
+                        let idx100 = x1 * (ny * nz) + y0 * nz + z0;
+                        let idx101 = x1 * (ny * nz) + y0 * nz + z1;
+                        let idx110 = x1 * (ny * nz) + y1 * nz + z0;
+                        let idx111 = x1 * (ny * nz) + y1 * nz + z1;
+                        
+                        // Retrieve surrounding structural densities nodes
+                        let c000 = data[idx000] || 0;
+                        let c001 = data[idx001] || 0;
+                        let c010 = data[idx010] || 0;
+                        let c011 = data[idx011] || 0;
+                        let c100 = data[idx100] || 0;
+                        let c101 = data[idx101] || 0;
+                        let c110 = data[idx110] || 0;
+                        let c111 = data[idx111] || 0;
+                        
+                        // Execute trilinear blending coordinates interpolation sequence
+                        let c00 = c000 * (1 - xd) + c100 * xd;
+                        let c01 = c001 * (1 - xd) + c101 * xd;
+                        let c10 = c010 * (1 - xd) + c110 * xd;
+                        let c11 = c011 * (1 - xd) + c111 * xd;
+                        
+                        let c0 = c00 * (1 - yd) + c10 * yd;
+                        let c1 = c01 * (1 - yd) + c11 * yd;
+                        
+                        let finalDensityValue = c0 * (1 - zd) + c1 * zd;
+                        
+                        marchingCubesController.setValue(x, y, z, finalDensityValue);
                     }
                 }
             }
@@ -313,4 +347,4 @@
         init3D();
     </script>
 </body>
-</html>
+</html> 
