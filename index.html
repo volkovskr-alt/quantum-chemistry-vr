@@ -25,8 +25,9 @@
         </div>
         <div class="control-group">
             <label for="isovalue-slider">Isovalue (Density Threshold)</label>
-            <input type="range" id="isovalue-slider" min="0.001" max="0.1" step="0.001" value="0.02">
-            <span id="slider-val" style="font-size: 11px; color: #8a9eff;">0.020</span>
+            <!-- ИСПРАВЛЕНИЕ: Стартовое значение жестко выставлено на физический порог 0.015 -->
+            <input type="range" id="isovalue-slider" min="0.001" max="0.05" step="0.001" value="0.015">
+            <span id="slider-val" style="font-size: 11px; color: #8a9eff;">0.015</span>
         </div>
         <div id="status">Warming up visualizer arrays...</div>
     </div>
@@ -70,7 +71,7 @@
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
-        let activeResolution = 40; // Базовое разрешение интерполяции лопастей
+        let activeResolution = 40; 
         let atomMeshGroup = new THREE.Group();
 
         function init3D() {
@@ -120,19 +121,22 @@
 
             animate();
             
+            // AUTOMATIC BOOTPIPE: Warm up hardware for 300ms, then trigger data call natively
             setTimeout(() => {
-                fetchAndParseCube(ORBITAL_FILES);
-            }, 500);
+                fetchAndParseCube(ORBITAL_FILES[0]);
+            }, 300);
         }
 
-        // --- 3. FORTRAN-NEUTRAL ASYMMETRIC GRID DATA PARSER ---
+        // --- 3. LINEAR BUFFERED ASYMMETRIC GRID DATA PARSER ---
         async function fetchAndParseCube(fileName) {
-            statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
+            statusEl.textContent = `Fetching local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
             
             const targetUrl = `data/${fileName}`;
             
             try {
+                // THE DATA ANCHOR: Await completely stalls execution until the text streams 
+                // into local memory blocks, preventing cold-start parsing race conditions.
                 const response = await fetch(targetUrl);
                 if (!response.ok) throw new Error("Local dataset stream read failure.");
                 const rawText = await response.text();
@@ -208,7 +212,7 @@
                     scanPtr++;
                 }
 
-                // Step 3: Stream pointer intercept to clean trailing meta parameters
+                // Step 3: Stream pointer intercept to clean trailing parameters records
                 while (scanPtr < tokens.length) {
                     let valStr = tokens[scanPtr];
                     if (valStr.indexOf('.') !== -1) {
@@ -220,7 +224,7 @@
                     scanPtr++;
                 }
 
-                // Step 4: Map mathematical calculations matrix straight into dynamic tracking field
+                // Step 4: Map mathematical calculations matrix tokens straight into density arrays
                 let volumetricValuesGrid = [];
                 for (let k = scanPtr; k < tokens.length; k++) {
                     let densityValue = parseFloat(tokens[k]);
@@ -253,7 +257,7 @@
             if (marchingCubesController) scene.remove(marchingCubesController);
             
             const isovalue = parseFloat(document.getElementById('isovalue-slider').value);
-            const res = activeResolution; // Static 40x40x40 interpolation layer space
+            const res = activeResolution; 
             
             marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
             marchingCubesController.position.set(0, 0, 0);
@@ -262,12 +266,10 @@
             marchingCubesController.init(res);
             
             const data = currentVolumetricData.data;
-            const nx = currentVolumetricData.nx; // Extracted dynamically (79)
-            const ny = currentVolumetricData.ny; // Extracted dynamically (84)
-            const nz = currentVolumetricData.nz; // Extracted dynamically (78)
+            const nx = currentVolumetricData.nx; 
+            const ny = currentVolumetricData.ny; 
+            const nz = currentVolumetricData.nz; 
             
-            // ASYMMETRIC PROPORTIONAL MAPPING: Interpolates data entries non-symmetrically 
-            // across the 3D buffer grid bounds, avoiding memory boundary leaks.
             for (let x = 1; x < res - 1; x++) {
                 for (let y = 1; y < res - 1; y++) {
                     for (let z = 1; z < res - 1; z++) {
@@ -275,7 +277,6 @@
                         let dataY = Math.floor((y / res) * ny);
                         let dataZ = Math.floor((z / res) * nz);
                         
-                        // Strict row-major index mapping layout for asymmetric 3D data files configurations
                         let index = dataX * (ny * nz) + dataY * nz + dataZ;
                         
                         let val = data[index] || 0;
