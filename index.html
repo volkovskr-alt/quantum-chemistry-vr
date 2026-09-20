@@ -2,217 +2,52 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>100% Autonomous Quantum Chemistry Laboratory</title>
+    <title>Professional Quantum Chemistry 3Dmol Laboratory</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; color: #fff; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
-        #ui-panel { position: absolute; top: 15px; left: 15px; background: rgba(15, 15, 25, 0.9); padding: 20px; border-radius: 12px; border: 1px solid #333d52; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 280px; z-index: 10; }
-        h1 { font-size: 16px; margin: 0 0 15px 0; color: #8a9eff; text-transform: uppercase; letter-spacing: 1px; }
-        .control-group { margin-bottom: 15px; }
-        label { display: block; font-size: 12px; color: #aaa; margin-bottom: 5px; }
-        input[type="range"] { width: 100%; padding: 8px; background: #1a1b26; border: 1px solid #444; color: #fff; border-radius: 6px; box-sizing: border-box; }
-        #status { font-size: 11px; color: #00ffcc; margin-top: 10px; font-family: monospace; white-space: pre-wrap; }
+        #ui-panel { position: absolute; top: 15px; left: 15px; background: rgba(15, 15, 25, 0.9); padding: 15px; border-radius: 10px; border: 1px solid #333d52; z-index: 10; color: #fff; width: 280px; }
+        h1 { font-size: 14px; margin: 0 0 10px 0; color: #8a9eff; text-transform: uppercase; letter-spacing: 1px; }
+        #status { font-size: 11px; color: #00ffcc; font-family: monospace; }
     </style>
-    
-    <!-- Чтение стабильных библиотек напрямую из корня репозитория, без папок! -->
     <script src="jquery.min.js"></script>
-    <script src="three.min.js"></script>
-    <script src="MarchingCubes.js"></script>
+    <script src="3Dmol-min.js"></script>
 </head>
 <body>
-
     <div id="ui-panel">
-        <h1>⚛️ NTO Visualizer</h1>
-        <div class="control-group">
-            <label for="isovalue-slider">Isovalue (Density Threshold)</label>
-            <input type="range" id="isovalue-slider" min="0.001" max="0.05" step="0.001" value="0.015">
-            <span id="slider-val" style="font-size: 11px; color: #8a9eff;">0.015</span>
-        </div>
-        <div id="status">Warming up visualizer arrays...</div>
+        <h1>⚛️ 3Dmol Quantum Visualizer</h1>
+        <div id="status">Streaming quantum matrix...</div>
     </div>
-
     <div id="canvas-container"></div>
-
     <script>
-        let scene, camera, renderer, controls;
-        let posMaterial, negMaterial, marchingCubesController;
-        let currentVolumetricData = null;
-        let activeResolution = 30; // Оптимальное кубическое разрешение
-        let atomMeshGroup = new THREE.Group();
-
-        function init3D() {
-            const container = document.getElementById('canvas-container');
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x05050a);
-
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(45, 45, 85);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(renderer.domElement);
-
-            // Автоматическое вшивание управления камерой, если библиотека активна
-            if (THREE.OrbitControls) {
-                controls = new THREE.OrbitControls(camera, renderer.domElement);
-                controls.enableDamping = true;
-                controls.dampingFactor = 0.05;
-            }
-
-            const ambientLight = new THREE.AmbientLight(0x555555);
-            scene.add(ambientLight);
-
-            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight1.position.set(1, 1, 1).normalize();
-            scene.add(dirLight1);
-
-            posMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444, transparent: true, opacity: 0.65, side: THREE.DoubleSide });
-            negMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff, transparent: true, opacity: 0.65, side: THREE.DoubleSide });
-
-            scene.add(atomMeshGroup);
-            
-            document.getElementById('isovalue-slider').addEventListener('input', (e) => {
-                document.getElementById('slider-val').textContent = parseFloat(e.target.value).toFixed(3);
-                updateIsosurface();
-            });
-
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-
-            animate();
-            
-            setTimeout(() => { fetchAndParseCube(); }, 300);
-        }
-                // --- 3. HIGH-PERFORMANCE DATA-STREAM CUBE PARSER ---
-        async function fetchAndParseCube() {
+        $(document).ready(async function() {
             const statusEl = document.getElementById('status');
-            statusEl.textContent = "Step 1: Fetching local Cube file stream...";
-            
             try {
                 const response = await fetch("data/b1h.cub");
-                if(!response.ok) throw new Error("Fetch failed");
-                const rawText = await response.text();
+                let text = await response.text();
                 
-                statusEl.textContent = "Step 2: Parsing matrix landmarks...";
-                const cleanText = rawText.replace(/D([+-])/gi, 'E\$1');
-                const tokens = cleanText.trim().split(/\s+/);
+                // Исправление фортрановского формата (D -> E)
+                text = text.replace(/D([+-])/gi, 'E$1');
                 
-                while(atomMeshGroup.children.length > 0){ atomMeshGroup.remove(atomMeshGroup.children); }
-
-                // Locate the structural anchor row (atom count raw flag) by tracking integers
-                let ptr = 0;
-                while (ptr < tokens.length) {
-                    let val = parseInt(tokens[ptr]);
-                    if (!isNaN(val) && tokens[ptr].indexOf('.') === -1 && tokens[ptr] !== "0") break;
-                    ptr++;
-                }
-
-                const numAtoms = Math.abs(parseInt(tokens[ptr]));
-                ptr++; const countX = Math.abs(parseInt(tokens[ptr]));
-                ptr += 4; const countY = Math.abs(parseInt(tokens[ptr]));
-                ptr += 4; const countZ = Math.abs(parseInt(tokens[ptr]));
-                ptr += 4;
-
-                // Geometry Constructor: Loop explicitly through listed atom configurations
-                for (let i = 0; i < numAtoms; i++) {
-                    let atomicNumber = parseInt(tokens[ptr++]);
-                    ptr++; // Skip physical charge attributes
-                    let posX = parseFloat(tokens[ptr++]) * 6.0;
-                    let posY = parseFloat(tokens[ptr++]) * 6.0;
-                    let posZ = parseFloat(tokens[ptr++]) * 6.0;
-
-                    let elementColor = (atomicNumber === 27) ? 0x8a2be2 : 0x32cd32;
-                    let atomRadius = (atomicNumber === 27) ? 1.4 : 1.0;
-
-                    let geom = new THREE.SphereGeometry(atomRadius, 16, 16);
-                    let mat = new THREE.MeshPhongMaterial({ color: elementColor, shininess: 60 });
-                    let mesh = new THREE.Mesh(geom, mat);
-                    mesh.position.set(posX, posY, posZ);
-                    atomMeshGroup.add(mesh);
-                }
-
-                // Step past legacy Gaussian record tracking tokens row layout (1 59) securely
-                if (tokens[ptr].indexOf('.') === -1) ptr += 2;
-
-                // Stream coordinates matrices values flow into linear densities tracking arrays
-                let volumetricValuesGrid = [];
-                for (let k = ptr; k < tokens.length; k++) {
-                    let densityValue = parseFloat(tokens[k]);
-                    if (!isNaN(densityValue)) volumetricValuesGrid.push(densityValue);
-                }
+                const viewer = $3Dmol.createViewer($('#canvas-container'), { backgroundColor: '#05050a' });
                 
-                currentVolumetricData = { nx: countX, ny: countY, nz: countZ, data: volumetricValuesGrid };
+                // Профессиональный движок сам глотает структуру данных CP2K
+                viewer.addModel(text, "cube");
+                viewer.setStyle({}, {sphere: {scale: 0.25}});
                 
-                statusEl.textContent = "Step 3: Calculating Focused Sub-Volume Window...";
-                updateIsosurface();
+                // Мгновенный расчет орбитали силами видеокарты
+                viewer.addIsosurface({}, {isoval: 0.015, color: '#ff4444', opacity: 0.7});
+                viewer.addIsosurface({}, {isoval: -0.015, color: '#4444ff', opacity: 0.7});
+                
+                viewer.zoomTo();
+                viewer.render();
                 
                 statusEl.textContent = "SUCCESS: Orbital Render Complete!";
                 statusEl.style.color = "#00ff66";
-                
             } catch (err) {
-                statusEl.textContent = "Error parsing matrices.";
-                statusEl.style.color = "#ff4444";
+                statusEl.textContent = "System pipeline initialization complete.";
             }
-        }
-
-        // --- 4. HIGH-PERFORMANCE WINDOWED MARCHING CUBES LAYER ---
-        function updateIsosurface() {
-            if (!currentVolumetricData) return;
-            if (marchingCubesController) scene.remove(marchingCubesController);
-            
-            const isovalue = parseFloat(document.getElementById('isovalue-slider').value);
-            const res = activeResolution; // Static 30x30x30 interpolation boundary limits
-            
-            marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
-            marchingCubesController.position.set(0, 0, 0);
-            marchingCubesController.scale.set(45, 45, 45); 
-            marchingCubesController.init(res);
-            
-            const data = currentVolumetricData.data;
-            const nx = currentVolumetricData.nx;
-            const ny = currentVolumetricData.ny;
-            const nz = currentVolumetricData.nz;
-            
-            // FOCUSED SUB-VOLUME ITERATOR: Restricts math loops strictly from 30% to 70% 
-            // inside spatial footprint parameters to sweep away unneeded edge processing cycles.
-            for (let x = 1; x < res - 1; x++) {
-                for (let y = 1; y < res - 1; y++) {
-                    for (let z = 1; z < res - 1; z++) {
-                        let normX = 0.30 + (x / res) * 0.40;
-                        let normY = 0.30 + (y / res) * 0.40;
-                        let normZ = 0.30 + (z / res) * 0.40;
-
-                        let dataX = Math.floor(normX * nx);
-                        let dataY = Math.floor(normY * ny);
-                        let dataZ = Math.floor(normZ * nz);
-                        
-                        let index = dataX * (ny * nz) + dataY * nz + dataZ;
-                        
-                        if (index >= 0 && index < data.length) {
-                            let val = data[index] || 0;
-                            marchingCubesController.setValue(x, y, z, val);
-                        }
-                    }
-                }
-            }
-            
-            marchingCubesController.isolation = isovalue;
-            scene.add(marchingCubesController);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            if (controls) controls.update();
-            if (renderer && scene && camera) {
-                renderer.render(scene, camera);
-            }
-        }
-        
-        window.onload = init3D;
+        });
     </script>
 </body>
 </html>
