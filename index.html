@@ -33,13 +33,13 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Чтение движка строго локально из вашего репозитория -->
+    <!-- Local engine core file mirrors loaded from your workspace -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
 
     <script>
-        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ВЫПАДАЮЩЕГО СПИСКА ---
+        // --- 1. INSTANT DROPDOWN MENU MATRIX ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -64,9 +64,9 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous core active. Loading data stream...";
+        statusEl.textContent = "Autonomous core active. Connecting local dataset...";
 
-        // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
+        // --- 2. GLOBAL VIEWPORT RUNTIME ENGINE HANDLERS ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
@@ -121,58 +121,59 @@
             });
 
             animate();
-            fetchAndParseCube(ORBITAL_FILES[0]);
+            fetchAndParseCube(ORBITAL_FILES[0]); 
         }
 
-        // --- 3. DROPBOX FETCH PIPE & INDESTRUCTIBLE TOKEN STREAM PARSER ---
+        // --- 3. 100% OFFLINE REGEXP TOKEN STREAM PARSER ---
         async function fetchAndParseCube(fileName) {
-            statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
+            statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
             
             const targetUrl = `data/${fileName}`;
             
             try {
                 const response = await fetch(targetUrl);
-                if (!response.ok) throw new Error("Local data file read failure.");
+                if (!response.ok) throw new Error("Local dataset stream read failure.");
                 const text = await response.text();
                 
-                statusEl.textContent = "Parsing cube data matrix...";
+                statusEl.textContent = "Parsing cube metadata tokens...";
                 
-                // Convert the entire file layout into a continuous stream array of string entries separated by white spaces
+                // Eradicate all Windows/Linux line endings and split cleanly by any whitespace character
                 const tokens = text.trim().split(/\s+/);
                 
-                // Scan the token array linearly to find the atom count integer (skipping comments)
-                let ptr = 0;
+                // Linear scan to bypass comment labels and isolate the atom count integer
+                let idx = 0;
                 let atomCount = NaN;
-                while (ptr < tokens.length) {
-                    let val = parseInt(tokens.at(ptr));
-                    if (!isNaN(val) && tokens.at(ptr).indexOf('.') === -1) {
+                while (idx < tokens.length) {
+                    let val = parseInt(tokens[idx]);
+                    // Identify the true header start point by validating it is an integer and contains no floating dots
+                    if (!isNaN(val) && tokens[idx].indexOf('.') === -1) {
                         atomCount = val;
                         break;
                     }
-                    ptr++;
+                    idx++;
                 }
                 
-                if (isNaN(atomCount)) throw new Error("Missing structural header metadata.");
+                if (isNaN(atomCount)) throw new Error("Missing structural header mapping.");
                 
-                // Read volumetric mesh layout details line increments linearly
-                ptr = ptr + 1; const countX = Math.abs(parseInt(tokens.at(ptr)));
-                ptr = ptr + 4; const countY = Math.abs(parseInt(tokens.at(ptr)));
-                ptr = ptr + 4; const countZ = Math.abs(parseInt(tokens.at(ptr)));
+                // Extrapolate voxel counts directly from the numeric stream positions
+                idx++; const countX = Math.abs(parseInt(tokens[idx]));
+                idx += 4; const countY = Math.abs(parseInt(tokens[idx]));
+                idx += 4; const countZ = Math.abs(parseInt(tokens[idx]));
                 
-                // Pass spatial parameters elements containing atoms coordinate fields
-                ptr = ptr + 4;
-                let totalAtomsCount = Math.abs(atomCount);
-                ptr = ptr + (totalAtomsCount * 5);
+                // Skip the atomic spatial coordinate assignments safely
+                idx += 4;
+                let totalAtoms = Math.abs(atomCount);
+                idx += (totalAtoms * 5);
                 
-                // Read the rest of the stream elements array directly as numerical densities data maps
+                // Extract all trailing data matrices as clean floating density coefficients
                 let volumetricValuesGrid = [];
-                while (ptr < tokens.length) {
-                    let parsedFloat = parseFloat(tokens.at(ptr));
-                    if (!isNaN(parsedFloat)) {
-                        volumetricValuesGrid.push(parsedFloat);
+                while (idx < tokens.length) {
+                    let elementFloat = parseFloat(tokens[idx]);
+                    if (!isNaN(elementFloat)) {
+                        volumetricValuesGrid.push(elementFloat);
                     }
-                    ptr++;
+                    idx++;
                 }
                 
                 currentVolumetricData = {
@@ -192,7 +193,7 @@
             }
         }
 
-        // --- 4. SURFACE CONTOUR CALCULATOR (MARCHING CUBES) ---
+        // --- 4. HARDWARE ISOSURFACE MATRIX CALCULATION (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -212,7 +213,7 @@
             const ny = currentVolumetricData.ny;
             const nz = currentVolumetricData.nz;
             
-            // Explicitly filter extreme boundary outer shell coordinates paths to strip VMD flat plane artifacts
+            // Filter outer shell grids coordinates arrays to eliminate trailing plane artifacts
             for (let x = 1; x < res - 1; x++) {
                 for (let y = 1; y < res - 1; y++) {
                     for (let z = 1; z < res - 1; z++) {
