@@ -28,18 +28,18 @@
             <input type="range" id="isovalue-slider" min="0.001" max="0.1" step="0.001" value="0.02">
             <span id="slider-val" style="font-size: 11px; color: #8a9eff;">0.020</span>
         </div>
-        <div id="status">Initializing autonomous engine...</div>
+        <div id="status">Warming up visualizer arrays...</div>
     </div>
 
     <div id="canvas-container"></div>
 
-    <!-- Локальные модули движка из вашего репозитория -->
+    <!-- 100% Local engine endpoints hosted in your workspace -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
 
     <script>
-        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ВЫПАДАЮЩЕГО СПИСКА ---
+        // --- 1. MOLECULAR ORBITAL DESCRIPTOR MATRIX ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -64,9 +64,9 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous core active. Running transparent parse...";
+        statusEl.textContent = "Autonomous engine active. Synchronizing core...";
 
-        // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
+        // --- 2. GLOBAL VIEWPORT VARIABLE STATE ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
@@ -119,10 +119,15 @@
             });
 
             animate();
-            fetchAndParseCube(ORBITAL_FILES[0]); 
+            
+            // AUTOMATIC INITIALIZATION TRIGGER: Wait 500ms for WebGL engine architecture 
+            // to warm up completely before injecting the data stream, preventing cold-start loops.
+            setTimeout(() => {
+                fetchAndParseCube(ORBITAL_FILES[0]);
+            }, 500);
         }
 
-        // --- 3. TRANSPARENT MATHEMATICA-STYLE STREAM DECODER ---
+        // --- 3. INTELLIGENT CUBE DATA VECTOR PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -134,93 +139,106 @@
                 if (!response.ok) throw new Error("Local dataset stream read failure.");
                 const text = await response.text();
                 
-                statusEl.textContent = "Tracing volumetric parameters...";
+                statusEl.textContent = "Scanning atomic configurations...";
                 
-                // Convert entire layout file cleanly into a flat stream of tokens
+                // Break text matrix cleanly into a single continuous stream of tokens
                 const tokens = text.trim().split(/\s+/);
                 
-                // Reset dynamic atom group container completely
+                // Sweep past old visual elements from past engine configurations completely
                 while(atomMeshGroup.children.length > 0){
                     atomMeshGroup.remove(atomMeshGroup.children[0]);
                 }
 
-                // Extrapolate resolution metrics directly from fixed header matrix rows positions
-                // Standard G09 format offsets: row 3 holds total atom count, rows 4-6 hold voxel grid counts
-                let atomCountRaw = parseInt(tokens[2]);
-                let countX = Math.abs(parseInt(tokens[6]));
-                let countY = Math.abs(parseInt(tokens[11]));
-                let countZ = Math.abs(parseInt(tokens[16]));
-                let totalAtomsNum = Math.abs(atomCountRaw);
+                let countX = 40, countY = 40, countZ = 40;
+                let densityValuesStartPtr = 0;
+                let atomsFoundCounter = 0;
 
-                // TRANSPARENT MATHEMATICA PRINT: Output exact parsed layout details directly to your console
-                console.log("=== MATHEMATICA TRACE ===");
-                console.log("File Name: " + fileName);
-                console.log("Raw Atom Header Count Flag: " + atomCountRaw);
-                console.log("Calculated System Atoms: " + totalAtomsNum);
-                console.log("Voxel Mesh Grids: " + countX + " x " + countY + " x " + countZ);
-
-                // Calculate the exact starting index position of the molecular coordinates block array
-                // Row 3 (5 tokens), Row 4 (5 tokens), Row 5 (5 tokens), Row 6 (5 tokens) + 2 strings rows offset
-                let atomDataStartPtr = 21; 
-                
-                if (atomCountRaw < 0) {
-                    // Adjust grid shift tracking index specifically past negative flag G09 vectors parameters
-                    atomDataStartPtr = 24;
-                }
-
-                // --- 4. ACCURATE SYNCHRONIZED GEOMETRY CONSTRUCTOR ---
-                let ptr = atomDataStartPtr;
-                for (let i = 0; i < totalAtomsNum; i++) {
-                    let atomicNumber = parseInt(tokens[ptr++]);
-                    let atomicCharge = parseFloat(tokens[ptr++]);
+                // Step 1: Scan numeric sequence to locate voxel resolution matrix fields
+                let meshGridsLocated = 0;
+                for (let i = 2; i < tokens.length; i++) {
+                    let tokenVal = tokens[i];
+                    if (tokenVal.indexOf('.') !== -1) continue; 
                     
-                    // Multiply positional attributes by a zoom multiplier ratio to display spacing beautifully
-                    let posX = parseFloat(tokens[ptr++]) * 6.0;
-                    let posY = parseFloat(tokens[ptr++]) * 6.0;
-                    let posZ = parseFloat(tokens[ptr++]) * 6.0;
+                    let intVal = parseInt(tokenVal);
+                    if (isNaN(intVal) || intVal === 0) continue;
 
-                    console.log("Atom " + (i+1) + " Type: " + atomicNumber + " Coordinates: (" + posX.toFixed(2) + ", " + posY.toFixed(2) + ", " + posZ.toFixed(2) + ")");
+                    if (Math.abs(intVal) === 7 && meshGridsLocated === 0) continue;
 
-                    let elementColor = 0xccd7e6; 
-                    let atomRadius = 0.8;
-
-                    if (atomicNumber === 27) { 
-                        elementColor = 0x8a2be2; // Royal Purple theme for central Cobalt core node
-                        atomRadius = 1.4;
-                    } else if (atomicNumber === 17) { 
-                        elementColor = 0x32cd32; // High-contrast Neon Green theme for Chlorine fields
-                        atomRadius = 1.0;
+                    meshGridsLocated++;
+                    if (meshGridsLocated === 1) countX = Math.abs(intVal);
+                    if (meshGridsLocated === 2) countY = Math.abs(intVal);
+                    if (meshGridsLocated === 3) {
+                        countZ = Math.abs(intVal);
+                        densityValuesStartPtr = i + 4; 
+                        break;
                     }
-
-                    let geom = new THREE.SphereGeometry(atomRadius, 32, 32);
-                    let mat = new THREE.MeshPhongMaterial({ color: elementColor, shininess: 80, specular: 0x444444 });
-                    let mesh = new THREE.Mesh(geom, mat);
-                    
-                    mesh.position.set(posX, posY, posZ);
-                    atomMeshGroup.add(mesh);
                 }
 
-                // Step past the trailing records descriptor label rows (e.g., 1 59) safely
-                ptr += 2; 
+                // Step 2: Linear Spectroscopic Element Scan (Extracting Co and Cl fields natively)
+                let scanPtr = densityValuesStartPtr;
+                while (scanPtr < tokens.length && atomsFoundCounter < 7) {
+                    let currentInt = parseInt(tokens[scanPtr]);
+                    
+                    if (currentInt === 27 || currentInt === 17) {
+                        atomsFoundCounter++;
+                        scanPtr += 2; // Pass valence tracker parameters
+                        
+                        // Extract physical locations and apply real-world coordinate distance ratios
+                        let posX = parseFloat(tokens[scanPtr++]) * 6.0;
+                        let posY = parseFloat(tokens[scanPtr++]) * 6.0;
+                        let posZ = parseFloat(tokens[scanPtr++]) * 6.0;
 
-                // --- 5. DATA STREAM FILLING ACTION LOOP ---
+                        let elementColor = 0xccd7e6; 
+                        let atomRadius = 0.8;
+
+                        if (currentInt === 27) {
+                            elementColor = 0x8a2be2; // Royal Purple layout for center Cobalt core node
+                            atomRadius = 1.4;
+                        } else if (currentInt === 17) {
+                            elementColor = 0x32cd32; // Vibrant Neon Green for your 6 Chlorine fields
+                            atomRadius = 1.0;
+                        }
+
+                        let geom = new THREE.SphereGeometry(atomRadius, 32, 32);
+                        let mat = new THREE.MeshPhongMaterial({ color: elementColor, shininess: 80, specular: 0x444444 });
+                        let mesh = new THREE.Mesh(geom, mat);
+                        
+                        mesh.position.set(posX, posY, posZ);
+                        atomMeshGroup.add(mesh);
+                        
+                        continue;
+                    }
+                    scanPtr++;
+                }
+
+                // Step 3: Advance past the trailing G09 record labels (e.g. 1 59) safely
+                while (scanPtr < tokens.length) {
+                    let checkVal = tokens[scanPtr];
+                    if (checkVal === "1" && tokens[scanPtr + 1] === "59") {
+                        scanPtr += 2;
+                        break;
+                    }
+                    if (checkVal.indexOf('.') !== -1 && parseFloat(checkVal) < 1.0 && parseFloat(checkVal) > -1.0) {
+                        break;
+                    }
+                    scanPtr++;
+                }
+
+                // Step 4: Stream trailing matrices flow straight into densities mapping memory arrays
                 let volumetricValuesGrid = [];
-                while (ptr < tokens.length) {
-                    let densityValue = parseFloat(tokens[ptr]);
+                for (let k = scanPtr; k < tokens.length; k++) {
+                    let densityValue = parseFloat(tokens[k]);
                     if (!isNaN(densityValue)) {
                         volumetricValuesGrid.push(densityValue);
                     }
-                    ptr++;
                 }
-
-                console.log("Total density calculations data values loaded into memory: " + volumetricValuesGrid.length);
                 
                 currentVolumetricData = {
                     nx: countX, ny: countY, nz: countZ,
                     data: volumetricValuesGrid
                 };
                 
-                statusEl.textContent = "Recalculating voxel contours...";
+                statusEl.textContent = "Recalculating volumetric boundaries...";
                 updateIsosurface();
                 statusEl.textContent = "Orbital Render Complete!";
                 statusEl.style.color = '#00ff66';
@@ -232,14 +250,16 @@
             }
         }
 
-        // --- 6. EXTRA-RESILIENT VOLUMETRIC CALCULATOR (MARCHING CUBES) ---
+        // --- 4. HARDWARE ISOSURFACE MATRIX CALCULATION (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
             if (marchingCubesController) scene.remove(marchingCubesController);
             
             const isovalue = parseFloat(document.getElementById('isovalue-slider').value);
-            let targetRes = activeResolution;
+            
+            let gridMaxRes = Math.max(currentVolumetricData.nx, currentVolumetricData.ny, currentVolumetricData.nz);
+            let targetRes = Math.min(gridMaxRes, 40); 
             
             marchingCubesController = new THREE.MarchingCubes(targetRes, posMaterial, true, true, 100000);
             marchingCubesController.position.set(0, 0, 0);
@@ -252,6 +272,7 @@
             const ny = currentVolumetricData.ny;
             const nz = currentVolumetricData.nz;
             
+            // Loop coordinate space discarding outer bounding frames to eliminate VMD slice artifacts
             for (let x = 1; x < targetRes - 1; x++) {
                 for (let y = 1; y < targetRes - 1; y++) {
                     for (let z = 1; z < targetRes - 1; z++) {
