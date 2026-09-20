@@ -33,7 +33,7 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Локальное чтение 3D модулей движка -->
+    <!-- Чтение библиотек движка строго локально из вашего репозитория -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
@@ -64,13 +64,13 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous engine active. Scaling matrices...";
+        statusEl.textContent = "Autonomous engine active. Processing grid layers...";
 
         // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
-        let activeResolution = 30; // Оптимальное разрешение для мгновенного отклика WebGL
+        let activeResolution = 30; 
         let atomMeshGroup = new THREE.Group();
 
         function init3D() {
@@ -125,7 +125,7 @@
             }, 300);
         }
 
-        // --- 3. HIGH-PERFORMANCE ASYMMETRIC GRID DATA PARSER ---
+        // --- 3. HIGH-PERFORMANCE ABSOLUTE MATRIX PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -133,7 +133,6 @@
             const targetUrl = `data/${fileName}`;
             
             try {
-                // Stabilized execution pipeline holding data extraction until file completes loading
                 const response = await fetch(targetUrl);
                 if (!response.ok) throw new Error("Local dataset stream read failure.");
                 const rawText = await response.text();
@@ -209,7 +208,7 @@
                     scanPtr++;
                 }
 
-                // Step 3: Stream pointer intercept to clean trailing meta parameters
+                // Step 3: Stream pointer intercept to clean trailing parameters records
                 while (scanPtr < tokens.length) {
                     let valStr = tokens[scanPtr];
                     if (valStr.indexOf('.') !== -1) {
@@ -231,7 +230,7 @@
                 }
                 
                 currentVolumetricData = {
-                    nx: countX, ny: countY, nz: countZ,
+                    nx: Math.abs(countX), ny: Math.abs(countY), nz: Math.abs(countZ),
                     data: volumetricValuesGrid
                 };
                 
@@ -247,14 +246,14 @@
             }
         }
 
-        // --- 4. HIGH-PERFORMANCE STRIDED MARCHING CUBES LOOP ---
+        // --- 4. DYNAMIC NON-SYMMETRIC MARCHING CUBES LOOP WITH ABSOLUTE INDEX GUARD ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
             if (marchingCubesController) scene.remove(marchingCubesController);
             
             const isovalue = parseFloat(document.getElementById('isovalue-slider').value);
-            const res = activeResolution; // Optimal 30x30x30 matrix execution block
+            const res = activeResolution; 
             
             marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
             marchingCubesController.position.set(0, 0, 0);
@@ -263,12 +262,10 @@
             marchingCubesController.init(res);
             
             const data = currentVolumetricData.data;
-            const nx = currentVolumetricData.nx; 
-            const ny = currentVolumetricData.ny; 
-            const nz = currentVolumetricData.nz; 
+            const nx = Math.abs(currentVolumetricData.nx); 
+            const ny = Math.abs(currentVolumetricData.ny); 
+            const nz = Math.abs(currentVolumetricData.nz); 
             
-            // OPTIMIZED FIELD ITERATOR: Linear proportional mapping interpolates data coordinates 
-            // smoothly across compressed thread matrices to break hardware bottleneck loops.
             for (let x = 1; x < res - 1; x++) {
                 for (let y = 1; y < res - 1; y++) {
                     for (let z = 1; z < res - 1; z++) {
@@ -278,8 +275,12 @@
                         
                         let index = dataX * (ny * nz) + dataY * nz + dataZ;
                         
-                        let val = data[index] || 0;
-                        marchingCubesController.setValue(x, y, z, val);
+                        // ABSOLUTE INDEX GUARD: Prevent buffer memory leaks if the file grid length 
+                        // maps values past array sizes.
+                        if (index >= 0 && index < data.length) {
+                            let val = data[index] || 0;
+                            marchingCubesController.setValue(x, y, z, val);
+                        }
                     }
                 }
             }
