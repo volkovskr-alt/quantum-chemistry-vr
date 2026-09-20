@@ -33,7 +33,7 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Чтение библиотек движка строго локально из вашего собственного репозитория -->
+    <!-- Чтение библиотек движка строго локально из вашего репозитория -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
@@ -102,6 +102,7 @@
             posMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444, transparent: true, opacity: 0.75, side: THREE.DoubleSide, shininess: 40 });
             negMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff, transparent: true, opacity: 0.75, side: THREE.DoubleSide, shininess: 40 });
 
+            // Base core visualization node setup
             const coreGeo = new THREE.SphereGeometry(1.2, 32, 32);
             const coreMat = new THREE.MeshPhongMaterial({ color: 0xccd7e6, shininess: 80 });
             const coreMesh = new THREE.Mesh(coreGeo, coreMat);
@@ -124,12 +125,11 @@
             fetchAndParseCube(ORBITAL_FILES[0]); 
         }
 
-        // --- 3. 100% OFFLINE TOKEN STREAM DATABOUND PARSER ---
+        // --- 3. 100% OFFLINE WINDOWS/LINUX NEUTRAL TOKEN PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
             
-            // Read data files straight from your new local repository storage path
             const targetUrl = `data/${fileName}`;
             
             try {
@@ -139,41 +139,45 @@
                 
                 statusEl.textContent = "Parsing cube metadata tokens...";
                 
-                // Convert the file text layout into a single flat numerical matrix string stream array
-                const tokens = text.trim().split(/\s+/);
+                // CRITICAL FIX: Replace Windows carriage returns globally to normalize text parsing
+                const cleanText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                 
-                // Locate the primary atom count index (skipping comments strings)
-                let pointer = 0;
-                let atomCount = NaN;
-                while (pointer < tokens.length) {
-                    let val = parseInt(tokens[pointer]);
-                    if (!isNaN(val) && tokens[pointer].indexOf('.') === -1) {
-                        atomCount = val;
-                        break;
+                // Separate file string blocks into clean data rows array mapping
+                const rawRows = cleanText.split('\n');
+                let validLines = [];
+                for(let i=0; i<rawRows.length; i++){
+                    let trimmed = rawRows[i].trim();
+                    if(trimmed.length > 0) {
+                        validLines.push(trimmed);
                     }
-                    pointer++;
                 }
                 
-                if (isNaN(atomCount)) throw new Error("Missing coordinate dimensions header mapping.");
+                if (validLines.length < 6) throw new Error("File formatting is too short.");
+
+                // Isolate individual text tokens precisely from designated array rows indexes
+                const atomLineTokens = validLines[2].split(/\s+/);
+                const xLineTokens    = validLines[3].split(/\s+/);
+                const yLineTokens    = validLines[4].split(/\s+/);
+                const zLineTokens    = validLines[5].split(/\s+/);
+
+                const atomCount = parseInt(atomLineTokens[0]);
+                const countX    = Math.abs(parseInt(xLineTokens[0]));
+                const countY    = Math.abs(parseInt(yLineTokens[0]));
+                const countZ    = Math.abs(parseInt(zLineTokens[0]));
                 
-                // Track spatial resolution dimensions cleanly from standard stream positions
-                pointer = pointer + 1; const countX = Math.abs(parseInt(tokens[pointer]));
-                pointer = pointer + 4; const countY = Math.abs(parseInt(tokens[pointer]));
-                pointer = pointer + 4; const countZ = Math.abs(parseInt(tokens[pointer]));
-                
-                // Pass atomic details structure block array mapping
-                pointer = pointer + 4;
-                let numericalAtomsCount = Math.abs(atomCount);
-                pointer = pointer + (numericalAtomsCount * 5);
-                
-                // Assemble all remaining field coefficients straight into structural space coordinates maps
+                let dataStartLine = 6 + Math.abs(atomCount);
                 let volumetricValuesGrid = [];
-                while (pointer < tokens.length) {
-                    let elementFloat = parseFloat(tokens[pointer]);
-                    if (!isNaN(elementFloat)) {
-                        volumetricValuesGrid.push(elementFloat);
+                
+                for (let i = dataStartLine; i < validLines.length; i++) {
+                    let lineVals = validLines[i].split(/\s+/);
+                    for (let j = 0; j < lineVals.length; j++) {
+                        if (lineVals[j] !== "") {
+                            let elementFloat = parseFloat(lineVals[j]);
+                            if (!isNaN(elementFloat)) {
+                                volumetricValuesGrid.push(elementFloat);
+                            }
+                        }
                     }
-                    pointer++;
                 }
                 
                 currentVolumetricData = {
@@ -213,7 +217,7 @@
             const ny = currentVolumetricData.ny;
             const nz = currentVolumetricData.nz;
             
-            // Explicitly filter out boundary padding rows to eliminate VMD edge planes artifacts
+            // Explicitly filter out extreme outer boundary rows to prevent edge plane artifact blocks
             for (let x = 1; x < res - 1; x++) {
                 for (let y = 1; y < res - 1; y++) {
                     for (let z = 1; z < res - 1; z++) {
