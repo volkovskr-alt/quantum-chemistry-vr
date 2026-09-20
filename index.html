@@ -33,7 +33,7 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Чтение движка строго локально из вашего репозитория -->
+    <!-- Локальные модули движка -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
@@ -64,13 +64,14 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous core active. Loading data stream...";
+        statusEl.textContent = "Autonomous core active. Scaling atomic coordinates...";
 
         // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
         let activeResolution = 40;
+        let atomMeshGroup = new THREE.Group(); // Группа для динамической перерисовки атомов
 
         function init3D() {
             const container = document.getElementById('canvas-container');
@@ -99,14 +100,11 @@
             dirLight2.position.set(-1, -1, -1).normalize();
             scene.add(dirLight2);
 
-            posMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444, transparent: true, opacity: 0.75, side: THREE.DoubleSide, shininess: 40 });
-            negMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff, transparent: true, opacity: 0.75, side: THREE.DoubleSide, shininess: 40 });
+            posMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444, transparent: true, opacity: 0.65, side: THREE.DoubleSide, shininess: 40 });
+            negMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff, transparent: true, opacity: 0.65, side: THREE.DoubleSide, shininess: 40 });
 
-            // Atomic Core Base mesh setup
-            const coreGeo = new THREE.SphereGeometry(1.2, 32, 32);
-            const coreMat = new THREE.MeshPhongMaterial({ color: 0xccd7e6, shininess: 80 });
-            const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-            scene.add(coreMesh);
+            // Add our molecular geometry layer group directly to the dynamic rendering view
+            scene.add(atomMeshGroup);
 
             selector.addEventListener('change', (e) => fetchAndParseCube(e.target.value));
             
@@ -125,7 +123,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]); 
         }
 
-        // --- 3. TARGETED G09 SPECIFIC VOLUMETRIC DATA PARSER ---
+        // --- 3. TARGETED G09 SPECIFIC SCALED GEOMETRY PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -137,12 +135,11 @@
                 if (!response.ok) throw new Error("Local dataset stream read failure.");
                 const text = await response.text();
                 
-                statusEl.textContent = "Parsing G09 matrix headers...";
+                statusEl.textContent = "Parsing spatial dimensions...";
                 
-                // Break file cleanly by any string space or line break globally
+                // Break file contents dynamically into clean text tokens strings array
                 const tokens = text.trim().split(/\s+/);
                 
-                // Bypass comment lines to find the atom count row
                 let ptr = 0;
                 let atomCount = NaN;
                 while (ptr < tokens.length) {
@@ -154,32 +151,66 @@
                     ptr++;
                 }
                 
-                if (isNaN(atomCount)) throw new Error("Could not find G09 structural indices.");
+                if (isNaN(atomCount)) throw new Error("Could not parse structure boundaries indices.");
 
                 let numAtoms = Math.abs(atomCount);
 
-                // Step 2: Read specific Voxel mesh bounds dimensions directly from token offsets
+                // Step 2: Extract grid parameters safely from data flow tracks
                 ptr++; const countX = Math.abs(parseInt(tokens[ptr]));
                 ptr += 4; const countY = Math.abs(parseInt(tokens[ptr]));
                 ptr += 4; const countZ = Math.abs(parseInt(tokens[ptr]));
                 
-                // Step 3: Advance pointer exactly past remaining grid vectors and atom descriptors
                 ptr += 4; 
-                ptr += (numAtoms * 5); // Excludes ligand structural matrices lines cleanly
+
+                // --- 4. INDEPENDENT GEOMETRIC ATOM PARSER & CHROMATIC COLORIZER ---
+                // Reset the molecular grid group to sweep past any old degenerate layouts completely
+                while(atomMeshGroup.children.length > 0){
+                    atomMeshGroup.remove(atomMeshGroup.children[0]);
+                }
+
+                // Process every single individual atom listed sequentially in your header grid
+                for (let i = 0; i < numAtoms; i++) {
+                    let atomicNumber = parseInt(tokens[ptr++]);
+                    let atomicCharge = parseFloat(tokens[ptr++]);
+                    
+                    // Multiply coordinates by a robust scaling factor to draw them apart beautifully
+                    let posX = parseFloat(tokens[ptr++]) * 6.0;
+                    let posY = parseFloat(tokens[ptr++]) * 6.0;
+                    let posZ = parseFloat(tokens[ptr++]) * 6.0;
+
+                    let elementColor = 0xccd7e6; // Default silver-gray configuration fallback
+                    let atomRadius = 0.8;
+
+                    if (atomicNumber === 27) { 
+                        // Royal Purple styling mapped specifically for your central Cobalt core
+                        elementColor = 0x8a2be2; 
+                        atomRadius = 1.4;
+                    } else if (atomicNumber === 17) { 
+                        // High-contrast vibrant Neon Green styling for your 6 Chlorine ligand fields
+                        elementColor = 0x32cd32; 
+                        atomRadius = 1.0;
+                    }
+
+                    let geom = new THREE.SphereGeometry(atomRadius, 32, 32);
+                    let mat = new THREE.MeshPhongMaterial({ color: elementColor, shininess: 80, specular: 0x444444 });
+                    let mesh = new THREE.Mesh(geom, mat);
+                    
+                    mesh.position.set(posX, posY, posZ);
+                    atomMeshGroup.add(mesh);
+                }
                 
-                // Step 4: G09 structural fix: look for the trailing MO record indicator line (e.g., 1  59)
-                let numOrbitals = parseInt(tokens[ptr]);
-                if (!isNaN(numOrbitals) && tokens[ptr].indexOf('.') === -1) {
-                    // Skip both the orbital count (1) and orbital index number (59) to isolate density values
+                // Step 5: Bypassing the trailing Gaussian index metadata lines (e.g. 1 59)
+                let trailingOrbsRecord = parseInt(tokens[ptr]);
+                if (!isNaN(trailingOrbsRecord) && tokens[ptr].indexOf('.') === -1) {
                     ptr += 2; 
                 }
                 
-                // Step 5: Map remaining float coefficients stream straight into densities memory field arrays
+                // Step 6: Stream numerical grid field matrices directly into density mapping blocks
                 let volumetricValuesGrid = [];
                 while (ptr < tokens.length) {
-                    let floatVal = parseFloat(tokens[ptr]);
-                    if (!isNaN(floatVal)) {
-                        volumetricValuesGrid.push(floatVal);
+                    let densityValue = parseFloat(tokens[ptr]);
+                    if (!isNaN(densityValue)) {
+                        volumetricValuesGrid.push(densityValue);
                     }
                     ptr++;
                 }
@@ -189,7 +220,7 @@
                     data: volumetricValuesGrid
                 };
                 
-                statusEl.textContent = "Rendering clean isosurfaces...";
+                statusEl.textContent = "Rendering spatial isosurfaces...";
                 updateIsosurface();
                 statusEl.textContent = "Orbital Render Complete!";
                 statusEl.style.color = '#00ff66';
@@ -201,7 +232,7 @@
             }
         }
 
-        // --- 4. SURFACE CONTOUR CALCULATOR (MARCHING CUBES) ---
+        // --- 5. VISUAL CONTOUR DENSITY GRAPHIC ALGORITHM (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -212,7 +243,9 @@
             
             marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
             marchingCubesController.position.set(0, 0, 0);
-            marchingCubesController.scale.set(16, 16, 16); 
+            
+            // Adjust the spatial layout footprint scale to expand precisely across your separated coordinates structure
+            marchingCubesController.scale.set(45, 45, 45); 
             
             marchingCubesController.init(res);
             
@@ -221,7 +254,7 @@
             const ny = currentVolumetricData.ny;
             const nz = currentVolumetricData.nz;
             
-            // Explicitly clip outer voxel bounds frames to drop plane slicing boundary artifacts completely
+            // Clip boundary tracking layers to eliminate ugly edge plane visualization artifacts completely
             for (let x = 1; x < res - 1; x++) {
                 for (let y = 1; y < res - 1; y++) {
                     for (let z = 1; z < res - 1; z++) {
