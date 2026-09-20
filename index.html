@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Professional 100% Offline 3Dmol Laboratory</title>
+    <title>Professional Quantum Chemistry 3Dmol Laboratory</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
@@ -11,7 +11,10 @@
         #status { font-size: 11px; color: #00ffcc; font-family: monospace; }
     </style>
     
-    <!-- Чтение библиотек: three.min.js берем из папки js, а 3Dmol-min.js читаем прямо из корня репозитория -->
+    <!-- 1. Высокоскоростной защищенный слой jQuery (необходим для запуска 3Dmol) -->
+    <script src="https://jquery.com"></script>
+    
+    <!-- 2. Ваши локальные файлы ядра из вашего репозитория GitHub -->
     <script src="js/three.min.js"></script>
     <script src="3Dmol-min.js"></script>
 </head>
@@ -19,47 +22,42 @@
 
     <div id="ui-panel">
         <h1>⚛️ Local 3Dmol Engine</h1>
-        <div id="status">Initializing 100% local canvas...</div>
+        <div id="status">Initializing WebGL2 canvas...</div>
     </div>
 
     <div id="canvas-container"></div>
-        <script>
-        // Native, dependency-free browser document readiness orchestrator
-        window.addEventListener('DOMContentLoaded', async function() {
+
+    <script>
+        $(document).ready(async function() {
             const statusEl = document.getElementById('status');
-            
-            // Pointing directly to our active CP2K/G09 quantum simulation file
             const cubeUrl = "data/b1h.cub";
-            
-            // Brief hardware buffer delay to let the browser stabilize graphic threads
-            await new Promise(resolve => setTimeout(resolve, 200));
             
             try {
                 statusEl.textContent = "Fetching local Cube data stream...";
                 
-                // 1. Pull the raw coordinate and density matrix straight from your data folder
+                // 1. Асинхронно скачиваем ваш реальный квантовый куб чисел
                 const response = await fetch(cubeUrl);
                 if(!response.ok) throw new Error("Local dataset file read failure.");
                 const cubeDataText = await response.text();
                 
                 statusEl.textContent = "Deploying WebGL2 Isosurfaces...";
                 
-                // 2. Map the 3D viewport canvas element container cleanly
-                const element = document.getElementById('canvas-container');
+                // 2. Инициализируем высокопроизводительный WebGL-контейнер
+                const element = $('#canvas-container');
                 const viewer = $3Dmol.createViewer(element, { backgroundColor: '#05050a' });
                 
-                // 3. Inject the raw cube text mass straight into the native 3Dmol binary parser
+                // 3. Передаем сырой текст файла прямо в аппаратный бинарный парсер движка
                 viewer.addModel(cubeDataText, "cube");
                 
-                // Render physical atoms as compact, highly tailored CPK coordinate spheres
+                // Отрисовка физических атомов комплекса (классические сферы CPK)
                 viewer.setStyle({}, {sphere: {scale: 0.25}});
                 
-                // Render true quantum d-orbital lobes natively on your ideal physical threshold (0.015)
-                // The professional engine executes this marching calculations loop directly on your GPU!
+                // Рендеринг истинных волновых лопастей d-орбитали прямо на видеокарте (GPU)
+                // Порог изоповерхности выставлен на идеальный физический уровень 0.015
                 viewer.addIsosurface({}, {isoval: 0.015, color: '#ff4444', opacity: 0.70});
                 viewer.addIsosurface({}, {isoval: -0.015, color: '#4444ff', opacity: 0.70});
                 
-                // Automatically calculate coordinate bounds, center view, and scale scene
+                // Автоматическое центрирование осей и масштабирование сцены
                 viewer.zoomTo();
                 viewer.render();
                 
