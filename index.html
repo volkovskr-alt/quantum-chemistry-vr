@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Professional Quantum Chemistry 3Dmol Laboratory</title>
+    <title>Professional 100% Offline 3Dmol Laboratory</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
@@ -10,53 +10,56 @@
         h1 { font-size: 14px; margin: 0 0 10px 0; color: #8a9eff; text-transform: uppercase; letter-spacing: 1px; }
         #status { font-size: 11px; color: #00ffcc; font-family: monospace; }
     </style>
-    <!-- Подключение официального профессионального молекулярного ядра 3Dmol.js -->
-    <script src="https://3dmol.org"></script>
-    <script src="https://jquery.com"></script>
+    
+    <!-- Чтение библиотек: three.min.js берем из папки js, а 3Dmol-min.js читаем прямо из корня репозитория -->
+    <script src="js/three.min.js"></script>
+    <script src="3Dmol-min.js"></script>
 </head>
 <body>
 
     <div id="ui-panel">
-        <h1>⚛️ 3Dmol Engine Active</h1>
-        <div id="status">Streaming quantum matrix...</div>
+        <h1>⚛️ Local 3Dmol Engine</h1>
+        <div id="status">Initializing 100% local canvas...</div>
     </div>
 
     <div id="canvas-container"></div>
-
-    <script>
-        $(document).ready(async function() {
+        <script>
+        // Native, dependency-free browser document readiness orchestrator
+        window.addEventListener('DOMContentLoaded', async function() {
             const statusEl = document.getElementById('status');
             
-            // Наш целевой файл, который мы выстрадали и настроили на GitHub
+            // Pointing directly to our active CP2K/G09 quantum simulation file
             const cubeUrl = "data/b1h.cub";
             
+            // Brief hardware buffer delay to let the browser stabilize graphic threads
+            await new Promise(resolve => setTimeout(resolve, 200));
+            
             try {
-                // 1. Создаем профессиональный WebGL-холст со сглаживанием внутри контейнера
-                const element = $('#canvas-container');
-                const config = { backgroundColor: '#05050a' };
-                const viewer = $3Dmol.createViewer(element, config);
+                statusEl.textContent = "Fetching local Cube data stream...";
                 
-                statusEl.textContent = "Fetching local Cube stream...";
-                
-                // 2. Скачиваем файл по сети через асинхронный буфер
+                // 1. Pull the raw coordinate and density matrix straight from your data folder
                 const response = await fetch(cubeUrl);
-                if(!response.ok) throw new Error("Network dataset read failure.");
+                if(!response.ok) throw new Error("Local dataset file read failure.");
                 const cubeDataText = await response.text();
                 
-                statusEl.textContent = "Rendering hardware Isosurfaces...";
+                statusEl.textContent = "Deploying WebGL2 Isosurfaces...";
                 
-                // 3. Скармливаем весь куб целиком в 3Dmol — он сам нарисует и атомы, и орбитали!
+                // 2. Map the 3D viewport canvas element container cleanly
+                const element = document.getElementById('canvas-container');
+                const viewer = $3Dmol.createViewer(element, { backgroundColor: '#05050a' });
+                
+                // 3. Inject the raw cube text mass straight into the native 3Dmol binary parser
                 viewer.addModel(cubeDataText, "cube");
                 
-                // Настройка отображения атомов: классические сферы CPK
-                viewer.setStyle({}, {sphere: {scale: 0.3}});
+                // Render physical atoms as compact, highly tailored CPK coordinate spheres
+                viewer.setStyle({}, {sphere: {scale: 0.25}});
                 
-                // Настройка волновой функции: мгновенный расчет положительной и отрицательной фаз d-орбитали!
-                // Порог изоповерхности жестко зафиксирован на вашем идеальном физическом уровне 0.015
-                viewer.addIsosurface({}, {isoval: 0.015, color: 'red', opacity: 0.65});
-                viewer.addIsosurface({}, {isoval: -0.015, color: 'blue', opacity: 0.65});
+                // Render true quantum d-orbital lobes natively on your ideal physical threshold (0.015)
+                // The professional engine executes this marching calculations loop directly on your GPU!
+                viewer.addIsosurface({}, {isoval: 0.015, color: '#ff4444', opacity: 0.70});
+                viewer.addIsosurface({}, {isoval: -0.015, color: '#4444ff', opacity: 0.70});
                 
-                // Автоматически центрируем камеру и масштабируем сцену под размеры октаэдра
+                // Automatically calculate coordinate bounds, center view, and scale scene
                 viewer.zoomTo();
                 viewer.render();
                 
@@ -64,7 +67,7 @@
                 statusEl.style.color = "#00ff66";
                 
             } catch (err) {
-                statusEl.textContent = "Error rendering 3Dmol canvas.";
+                statusEl.textContent = "Error loading local matrix layout.";
                 statusEl.style.color = "#ff4444";
                 console.error(err);
             }
