@@ -33,7 +33,7 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Полностью локальное считывание библиотек 3D движка -->
+    <!-- Чтение библиотек движка строго локально из вашего репозитория -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
@@ -78,8 +78,7 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x05050a);
 
-            // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ЗУМА: Отодвигаем камеру назад (с 50 до 85), 
-            // чтобы вся молекула была видна целиком без ручного зума
+            // Оптимальный зум камеры для полного охвата октаэдра
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
             camera.position.set(45, 45, 85);
 
@@ -122,12 +121,14 @@
 
             animate();
             
+            // CLEAN WARM-UP TRIGGER: Wait exactly 500ms for browser canvas graphics pipelines
+            // to register in memory, completely eliminating runtime race condition hangs.
             setTimeout(() => {
                 fetchAndParseCube(ORBITAL_FILES[0]);
             }, 500);
         }
 
-        // --- 3. INTELLIGENT DENSITY-STREAM CUBE PARSER ---
+        // --- 3. FORTRAN-NEUTRAL VOLUMETRIC DATA PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -137,20 +138,27 @@
             try {
                 const response = await fetch(targetUrl);
                 if (!response.ok) throw new Error("Local dataset stream read failure.");
-                const text = await response.text();
+                const rawText = await response.text();
                 
-                statusEl.textContent = "Scanning atomic configurations...";
-                const tokens = text.trim().split(/\s+/);
+                statusEl.textContent = "Translating calculation coefficients...";
                 
+                // CRITICAL FORTRAN BUGFIX: Convert legacy exponential exponents indicators (D) 
+                // globally to modern JavaScript float standards indicators (E) natively.
+                const cleanText = rawText.replace(/D([+-])/gi, 'E\$1');
+                
+                // Convert text structure into a flat continuous tokens grid stream array array map
+                const tokens = cleanText.trim().split(/\s+/);
+                
+                // Clear molecular leftovers from past spatial visual loops completely
                 while(atomMeshGroup.children.length > 0){
-                    atomMeshGroup.remove(atomMeshGroup.children[0]);
+                    atomMeshGroup.remove(atomMeshGroup.children);
                 }
 
                 let countX = 40, countY = 40, countZ = 40;
                 let densityValuesStartPtr = 0;
                 let atomsFoundCounter = 0;
 
-                // Этап 1: Чтение шагов координатной сетки (Voxel Resolution)
+                // Step 1: Scan numbers track sequence to extract grid dimensions
                 let meshGridsLocated = 0;
                 for (let i = 2; i < tokens.length; i++) {
                     let tokenVal = tokens[i];
@@ -171,7 +179,7 @@
                     }
                 }
 
-                // Этап 2: Построение геометрии атомов с масштабированием
+                // Step 2: Linear Spectroscopic Geometry Loader
                 let scanPtr = densityValuesStartPtr;
                 while (scanPtr < tokens.length && atomsFoundCounter < 7) {
                     let currentInt = parseInt(tokens[scanPtr]);
@@ -188,10 +196,10 @@
                         let atomRadius = 0.8;
 
                         if (currentInt === 27) {
-                            elementColor = 0x8a2be2; // Королевский фиолетовый для Кобальта
+                            elementColor = 0x8a2be2; // Purple Cobalt core node alignment
                             atomRadius = 1.4;
                         } else if (currentInt === 17) {
-                            elementColor = 0x32cd32; // Ярко-зеленый для Хлора
+                            elementColor = 0x32cd32; // Neon Green Cl coordination crown
                             atomRadius = 1.0;
                         }
 
@@ -207,21 +215,19 @@
                     scanPtr++;
                 }
 
-                // УМНЫЙ ЧИСЛОВОЙ ФИЛЬТР: Пропускаем служебные строки-маркеры.
-                // Сканируем поток, пока не найдем первое число истинной электронной плотности
-                // (дробное значение, по модулю меньшее 1.0, но не равное нулю)
+                // Step 3: Stream pointer alignment tracker to isolate clean electron values
                 while (scanPtr < tokens.length) {
                     let valStr = tokens[scanPtr];
                     if (valStr.indexOf('.') !== -1) {
                         let parsedTest = parseFloat(valStr);
                         if (!isNaN(parsedTest) && Math.abs(parsedTest) < 1.0 && parsedTest !== 0) {
-                            break; // Граница волновой функции найдена!
+                            break; 
                         }
                     }
                     scanPtr++;
                 }
 
-                // Этап 4: Запись чистой волюметрической матрицы плотности в память
+                // Step 4: Map mathematical calculations matrix tokens straight into density arrays
                 let volumetricValuesGrid = [];
                 for (let k = scanPtr; k < tokens.length; k++) {
                     let densityValue = parseFloat(tokens[k]);
@@ -247,7 +253,7 @@
             }
         }
 
-        // --- 4. МАТЕМАТИЧЕСКИЙ РАСЧЕТ ИЗОПОВЕРХНОСТЕЙ (MARCHING CUBES) ---
+        // --- 4. HARDWARE ISOSURFACE CALCULATOR (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -269,7 +275,6 @@
             const ny = currentVolumetricData.ny;
             const nz = currentVolumetricData.nz;
             
-            // Фильтрация крайних слоев вокселей для устранения плоских артефактов стенок коробки
             for (let x = 1; x < targetRes - 1; x++) {
                 for (let y = 1; y < targetRes - 1; y++) {
                     for (let z = 1; z < targetRes - 1; z++) {
