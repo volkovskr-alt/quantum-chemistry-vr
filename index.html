@@ -28,13 +28,19 @@
             <input type="range" id="isovalue-slider" min="0.001" max="0.1" step="0.001" value="0.02">
             <span id="slider-val" style="font-size: 11px; color: #8a9eff;">0.020</span>
         </div>
-        <div id="status">Initializing interface...</div>
+        <div id="status">Initializing autonomous engine...</div>
     </div>
 
     <div id="canvas-container"></div>
 
+    <!-- Загружаем основное 3D ядро локально из вашего репозитория -->
+    <script src="js/three.min.js"></script>
+    <!-- Легковесные вспомогательные файлы подгружаем с unpkg -->
+    <script src="https://unpkg.com"></script>
+    <script src="https://unpkg.com"></script>
+
     <script>
-        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ИНТЕРФЕЙСА ОРБИТАЛЯМИ ---
+        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ИНТЕРФЕЙСА ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -59,63 +65,9 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Interface ready. Routing 3D engine...";
+        statusEl.textContent = "Local core engine ready. Launching canvas...";
 
-        // --- 2. ПОСЛЕДОВАТЕЛЬНЫЙ ЗАГРУЗЧИК БЕЗ CLOUDFLARE ---
-        const cdnRoutes = [
-            [
-                "https://unpkg.com",
-                "https://unpkg.com",
-                "https://unpkg.com"
-            ],
-            [
-                "https://jsdelivr.net",
-                "https://jsdelivr.net",
-                "https://jsdelivr.net"
-            ]
-        ];
-
-        let routeIndex = 0;
-
-        function loadCDNRoute() {
-            if (routeIndex >= cdnRoutes.length) {
-                statusEl.textContent = "Error: All global 3D routes blocked.";
-                statusEl.style.color = "#ff4444";
-                return;
-            }
-
-            statusEl.textContent = `Connecting to 3D pipeline route ${routeIndex + 1}...`;
-            let urls = cdnRoutes[routeIndex];
-            let scriptIndex = 0;
-
-            function loadNextScript() {
-                if (scriptIndex >= urls.length) {
-                    statusEl.textContent = "3D Core loaded. Initializing canvas...";
-                    init3D();
-                    return;
-                }
-
-                let script = document.createElement('script');
-                script.src = urls[scriptIndex];
-                
-                script.onload = () => {
-                    scriptIndex++;
-                    loadNextScript();
-                };
-
-                script.onerror = () => {
-                    console.warn(`Route ${routeIndex + 1} failed. Switching paths...`);
-                    routeIndex++;
-                    loadCDNRoute();
-                };
-
-                document.head.appendChild(script);
-            }
-
-            loadNextScript();
-        }
-
-        // --- 3. ГЛОБАЛЬНЫЕ ТРЕХМЕРНЫЕ ПЕРЕМЕННЫЕ ---
+        // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ДВИЖОК ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
@@ -173,7 +125,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]);
         }
 
-        // --- 4. DATA EXTRACTION AND GRID METRICS PARSER ---
+        // --- 3. DROPBOX DATA FETCH PIPE & GRID METRICS PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -188,6 +140,7 @@
                 statusEl.textContent = "Parsing cube data matrix...";
                 const lines = text.split('\n');
                 
+                // Parse voxel metrics from exact row lines of your standard cube file format
                 const atomLine = lines[2].trim().split(/\s+/);
                 const xLine = lines[3].trim().split(/\s+/);
                 const yLine = lines[4].trim().split(/\s+/);
@@ -227,7 +180,7 @@
             }
         }
 
-        // --- 5. VISUAL ISOSURFACE MATRIX CALCULATION ---
+        // --- 4. SURFACE CONTOUR CALCULATOR (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -273,7 +226,8 @@
             }
         }
         
-        loadCDNRoute();
+        // Boot local 3D architecture
+        init3D();
     </script>
 </body>
 </html>
