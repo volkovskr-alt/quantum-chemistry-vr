@@ -28,18 +28,18 @@
             <input type="range" id="isovalue-slider" min="0.001" max="0.1" step="0.001" value="0.02">
             <span id="slider-val" style="font-size: 11px; color: #8a9eff;">0.020</span>
         </div>
-        <div id="status">Initializing 100% autonomous engine...</div>
+        <div id="status">Initializing autonomous engine...</div>
     </div>
 
     <div id="canvas-container"></div>
 
-    <!-- Read ALL 3D engine assets locally from your own repository folder -->
+    <!-- Полностью локальная загрузка 3D-архитектуры -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
 
     <script>
-        // --- 1. DROPDOWN MATRIX INITIALIZER ---
+        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ВЫПАДАЮЩЕГО СПИСКА ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -64,8 +64,9 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "All local cores found. Launching canvas...";
+        statusEl.textContent = "Autonomous core active. Loading data stream...";
 
+        // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
@@ -123,7 +124,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]);
         }
 
-        // --- 3. DROPBOX CONCURRENT FILE READ & METRICS PARSER ---
+        // --- 3. DROPBOX DATA FETCH PIPE & CORRECTED ROW PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -138,7 +139,7 @@
                 statusEl.textContent = "Parsing cube data matrix...";
                 const lines = text.split('\n');
                 
-                // Read geometry bounds strictly from lines 2, 3, 4, 5 of standard cube file format
+                // Corrected row-indexed headers extraction using standard square brackets arrays mapping
                 const atomCount = parseInt(lines[2].trim().split(/\s+/)[0]);
                 const countX = parseInt(lines[3].trim().split(/\s+/)[0]);
                 const countY = parseInt(lines[4].trim().split(/\s+/)[0]);
@@ -173,7 +174,7 @@
             }
         }
 
-        // --- 4. HARDWARE ISOSURFACE MATRIX CALCULATION (MARCHING CUBES) ---
+        // --- 4. SURFACE CONTOUR CALCULATOR (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -219,7 +220,7 @@
             }
         }
         
-        // Fire initialization sequence
+        // Launch clean autonomous runtime engine
         init3D();
     </script>
 </body>
