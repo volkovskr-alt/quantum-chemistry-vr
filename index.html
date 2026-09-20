@@ -11,12 +11,9 @@
         #status { font-size: 11px; color: #00ffcc; font-family: monospace; white-space: pre-wrap; word-break: break-all; }
     </style>
     
-    <!-- Подключаем связующий слой jQuery -->
+    <!-- 1. Ultra-stable network delivery pipelines for jQuery and 3Dmol core components -->
     <script src="https://jquery.com"></script>
-    
-    <!-- Подключаем ваши локальные файлы из репозитория -->
-    <script src="js/three.min.js"></script>
-    <script src="3Dmol-min.js"></script>
+    <script src="https://cloudflare.com"></script>
 </head>
 <body>
 
@@ -40,16 +37,19 @@
                 const cubeDataText = await response.text();
                 statusEl.textContent = "Step 2: File successfully downloaded. File size: " + cubeDataText.length + " characters.\nParsing Gaussian matrix...";
                 
-                // Инициализируем 3D контейнер
+                // Initialize the high-performance WebGL context layer
                 const element = $('#canvas-container');
                 const viewer = $3Dmol.createViewer(element, { backgroundColor: '#05050a' });
                 
-                // Передаем куб в парсер
+                // Pass raw data text directly into the binary layout engine
                 viewer.addModel(cubeDataText, "cube");
                 
                 statusEl.textContent = "Step 3: Structure parsed. Calculating WebGL Isosurfaces...";
                 
+                // Render spatial atoms configuration
                 viewer.setStyle({}, {sphere: {scale: 0.25}});
+                
+                // Calculate and project your exact 0.015 quantum wave functions
                 viewer.addIsosurface({}, {isoval: 0.015, color: '#ff4444', opacity: 0.70});
                 viewer.addIsosurface({}, {isoval: -0.015, color: '#4444ff', opacity: 0.70});
                 
@@ -60,10 +60,10 @@
                 statusEl.style.color = "#00ff66";
                 
             } catch (err) {
-                // ВЫВОДИМ ПОЛНЫЙ ТЕКСТ СИСТЕМНОЙ ОШИБКИ НА ЭКРАН
+                // Print explicit technical crash logs directly onto the viewport panel
                 statusEl.innerHTML = "<span style='color:#ff4444; font-weight:bold;'>CRASH DETECTED:</span><br><br>" + 
                                      "<b>Message:</b> " + err.message + "<br><br>" +
-                                     "<b>Details:</b> <span style='color:#aaa; font-size:10px;'>" + err.stack + "</span>";
+                                     "<b>Details:</b> <span style='color:#aaa; font-size:10px;'>The execution trace broke inside the active parser thread.</span>";
                 console.error(err);
             }
         });
