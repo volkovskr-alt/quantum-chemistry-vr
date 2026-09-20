@@ -33,14 +33,14 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Загружаем основное 3D ядро локально из вашего репозитория -->
+    <!-- Loads the 3D core locally from your own repository folder -->
     <script src="js/three.min.js"></script>
-    <!-- Легковесные вспомогательные файлы подгружаем с unpkg -->
+    <!-- Lightweight navigation/math utility helpers are read from unpkg -->
     <script src="https://unpkg.com"></script>
     <script src="https://unpkg.com"></script>
 
     <script>
-        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ИНТЕРФЕЙСА ---
+        // --- 1. INSTANT DROPDOWN INITIALIZER ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -67,7 +67,7 @@
         const statusEl = document.getElementById('status');
         statusEl.textContent = "Local core engine ready. Launching canvas...";
 
-        // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ И ДВИЖОК ---
+        // --- 2. GLOBAL VIEWPORT VARIABLE STATE ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
@@ -125,7 +125,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]);
         }
 
-        // --- 3. DROPBOX DATA FETCH PIPE & GRID METRICS PARSER ---
+        // --- 3. DROPBOX DATA FETCH PIPE & EXACT GRID METRICS PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -140,7 +140,7 @@
                 statusEl.textContent = "Parsing cube data matrix...";
                 const lines = text.split('\n');
                 
-                // Parse voxel metrics from exact row lines of your standard cube file format
+                // Read spatial metadata by targeting exact rows from your calculated file array headers
                 const atomLine = lines[2].trim().split(/\s+/);
                 const xLine = lines[3].trim().split(/\s+/);
                 const yLine = lines[4].trim().split(/\s+/);
@@ -226,7 +226,7 @@
             }
         }
         
-        // Boot local 3D architecture
+        // Execute clean autonomous runtime engine
         init3D();
     </script>
 </body>
