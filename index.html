@@ -64,13 +64,13 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous engine active. Synchronizing core...";
+        statusEl.textContent = "Autonomous engine active. Anchoring visual grid...";
 
         // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
-        let activeResolution = 45; // Высокое, красивое разрешение локальной зоны
+        let activeResolution = 45; 
         let atomMeshGroup = new THREE.Group();
 
         function init3D() {
@@ -121,11 +121,11 @@
             animate();
             
             setTimeout(() => {
-                fetchAndParseCube(ORBITAL_FILES[0]); // Robust native array indexing fallback
+                fetchAndParseCube(ORBITAL_FILES); 
             }, 300);
         }
 
-        // --- 3. RIGID MATHEMATICA-STYLE DIRECT TRACK PARSER ---
+        // --- 3. ADAPTIVE GRID STRUCTURE AUTO-SCAN PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -139,76 +139,99 @@
                 
                 statusEl.textContent = "Translating calculation coefficients...";
                 
-                // Eradicate legacy scientific exponential indicator flags (D -> E) globally
                 const cleanText = rawText.replace(/D([+-])/gi, 'E\$1');
-                
-                // Normalize text matrix down completely into a flat tokens entries string stream array
                 const tokens = cleanText.trim().split(/\s+/);
                 
                 while(atomMeshGroup.children.length > 0){
                     atomMeshGroup.remove(atomMeshGroup.children);
                 }
 
-                // --- 4. STRICT GAUSSIAN INDEX MAPPING PROTOCOL ---
-                // Row 1 and Row 2 are comments title rows (ignore tokens up to numerical index fields)
-                // In standard G09 cube layouts, the first legitimate number is the atom count index.
-                let ptr = 0;
-                while (ptr < tokens.length) {
-                    let val = parseInt(tokens[ptr]);
-                    if (!isNaN(val) && tokens[ptr].indexOf('.') === -1 && tokens[ptr] !== "0") {
-                        break; // Atom header line anchor caught safely
+                // --- 4. INDEPENDENT SPECTRUM AUTO-SCAN ENGINE ---
+                let scanPtr = 0;
+                let atomCountRaw = NaN;
+                while (scanPtr < tokens.length) {
+                    let val = parseInt(tokens[scanPtr]);
+                    if (!isNaN(val) && tokens[scanPtr].indexOf('.') === -1 && tokens[scanPtr] !== "0") {
+                        atomCountRaw = val;
+                        break;
                     }
-                    ptr++;
+                    scanPtr++;
                 }
 
-                const atomCountRaw = parseInt(tokens[ptr]);
-                const numAtoms = Math.abs(atomCountRaw);
+                if (isNaN(atomCountRaw)) throw new Error("Could not parse dataset structural headers.");
+                let numAtoms = Math.abs(atomCountRaw);
 
-                // Extrapolate asymmetric mesh dimensions directly via hard-coded structural tokens offsets
-                ptr += 1; const countX = Math.abs(parseInt(tokens[ptr])); // Axis X grid size
-                ptr += 4; const countY = Math.abs(parseInt(tokens[ptr])); // Axis Y grid size
-                ptr += 4; const countZ = Math.abs(parseInt(tokens[ptr])); // Axis Z grid size
-
-                // Skip the orientation parameters variables maps attached to the axis vector records block
-                ptr += 4; 
-
-                // Geometry Constructor: Loop exactly through every listed atom coordinate block array
-                for (let i = 0; i < numAtoms; i++) {
-                    let atomicNumber = parseInt(tokens[ptr++]);
-                    let atomicCharge = parseFloat(tokens[ptr++]);
+                scanPtr++;
+                let dimensions = [];
+                while (scanPtr < tokens.length && dimensions.length < 3) {
+                    let possibleDimToken = tokens[scanPtr];
+                    let intCheck = parseInt(possibleDimToken);
                     
-                    let posX = parseFloat(tokens[ptr++]) * 6.0;
-                    let posY = parseFloat(tokens[ptr++]) * 6.0;
-                    let posZ = parseFloat(tokens[ptr++]) * 6.0;
-
-                    let elementColor = 0xccd7e6; 
-                    let atomRadius = 0.8;
-
-                    if (atomicNumber === 27) {
-                        elementColor = 0x8a2be2; // Royal Purple theme for Cobalt core
-                        atomRadius = 1.4;
-                    } else if (atomicNumber === 17) {
-                        elementColor = 0x32cd32; // Neon Green crown for Chlorines
-                        atomRadius = 1.0;
+                    if (!isNaN(intCheck) && possibleDimToken.indexOf('.') === -1 && intCheck > 0) {
+                        dimensions.push(intCheck);
+                        scanPtr += 4; 
+                        continue;
                     }
+                    scanPtr++;
+                }
 
-                    let geom = new THREE.SphereGeometry(atomRadius, 32, 32);
-                    let mat = new THREE.MeshPhongMaterial({ color: elementColor, shininess: 80, specular: 0x444444 });
-                    let mesh = new THREE.Mesh(geom, mat);
+                if (dimensions.length < 3) throw new Error("Invalid or cropped grid dimension paths mapping.");
+                
+                const countX = dimensions[0];
+                const countY = dimensions[1];
+                const countZ = dimensions[2];
+
+                // --- 5. SYNCHRONIZED ATOMIC GEOMETRY LOADER ---
+                let atomsProcessed = 0;
+                while (scanPtr < tokens.length && atomsProcessed < numAtoms) {
+                    let currentTokenInt = parseInt(tokens[scanPtr]);
                     
-                    mesh.position.set(posX, posY, posZ);
-                    atomMeshGroup.add(mesh);
+                    if (currentTokenInt === 27 || currentIntToken === 17 || tokens[scanPtr] === "27" || tokens[scanPtr] === "17") {
+                        let detectedElement = parseInt(tokens[scanPtr]);
+                        atomsProcessed++;
+                        scanPtr += 2; 
+                        
+                        let posX = parseFloat(tokens[scanPtr++]) * 6.0;
+                        let posY = parseFloat(tokens[scanPtr++]) * 6.0;
+                        let posZ = parseFloat(tokens[scanPtr++]) * 6.0;
+
+                        let elementColor = 0xccd7e6; 
+                        let atomRadius = 0.8;
+
+                        if (detectedElement === 27) {
+                            elementColor = 0x8a2be2; 
+                            atomRadius = 1.4;
+                        } else if (detectedElement === 17) {
+                            elementColor = 0x32cd32; 
+                            atomRadius = 1.0;
+                        }
+
+                        let geom = new THREE.SphereGeometry(atomRadius, 32, 32);
+                        let mat = new THREE.MeshPhongMaterial({ color: elementColor, shininess: 80, specular: 0x444444 });
+                        let mesh = new THREE.Mesh(geom, mat);
+                        
+                        mesh.position.set(posX, posY, posZ);
+                        atomMeshGroup.add(mesh);
+                        continue;
+                    }
+                    scanPtr++;
+                }
+                                // Step past the trailing records indicator labels (e.g. 1 59 or 1 1) securely
+                while (scanPtr < tokens.length) {
+                    let valStr = tokens[scanPtr];
+                    if (valStr.indexOf('.') !== -1) {
+                        let parsedTest = parseFloat(valStr);
+                        // True electron densities start when encountering values bounded smaller than 1.0
+                        if (!isNaN(parsedTest) && Math.abs(parsedTest) < 1.0 && parsedTest !== 0) {
+                            break; 
+                        }
+                    }
+                    scanPtr++;
                 }
 
-                // G09 Target Pointer Adjust: Safely step past the trailing records indicators (1 59)
-                let checkOrbitalFlag = parseInt(tokens[ptr]);
-                if (!isNaN(checkOrbitalFlag) && tokens[ptr].indexOf('.') === -1) {
-                    ptr += 2; // Jump past both the orbital count (1) and active index parameter (59)
-                }
-
-                // --- 5. FIELD MATRIX COEFFICIENTS EXTRACTOR ---
+                // --- 6. FIELD COEFFICIENTS DATA EXTRACTION ---
                 let volumetricValuesGrid = [];
-                for (let k = ptr; k < tokens.length; k++) {
+                for (let k = scanPtr; k < tokens.length; k++) {
                     let densityValue = parseFloat(tokens[k]);
                     if (!isNaN(densityValue)) {
                         volumetricValuesGrid.push(densityValue);
@@ -232,14 +255,14 @@
             }
         }
 
-        // --- 6. HIGH-PERFORMANCE WINDOWED MARCHING CUBES LOOP ---
+        // --- 7. HIGH-PERFORMANCE WINDOWED MARCHING CUBES LAYER ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
             if (marchingCubesController) scene.remove(marchingCubesController);
             
             const isovalue = parseFloat(document.getElementById('isovalue-slider').value);
-            const res = activeResolution; // High resolution 45 layout concentrated inside reaction coordinates
+            const res = activeResolution; // High definition 45 layout concentrated inside reaction coordinates
             
             marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
             marchingCubesController.position.set(0, 0, 0);
@@ -252,8 +275,7 @@
             const ny = Math.abs(currentVolumetricData.ny); 
             const nz = Math.abs(currentVolumetricData.nz); 
             
-            // Sub-Volume Core Windowing: Slice matrix directly from 35% to 65% across spatial dimensions 
-            // to restrict calculations to the active reaction zone, completely dropping processor bottlenecks.
+            // Sub-Volume focus mapping: restrict math evaluations strictly to the coordinate zone (35% to 65%)
             for (let x = 1; x < res - 1; x++) {
                 for (let y = 1; y < res - 1; y++) {
                     for (let z = 1; z < res - 1; z++) {
