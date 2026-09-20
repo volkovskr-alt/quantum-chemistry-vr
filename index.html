@@ -33,13 +33,13 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Local engine core file mirrors loaded from your workspace -->
+    <!-- Чтение движка строго локально из вашего репозитория -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
 
     <script>
-        // --- 1. INSTANT DROPDOWN MENU MATRIX ---
+        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ВЫПАДАЮЩЕГО СПИСКА ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -64,9 +64,9 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous core active. Connecting local dataset...";
+        statusEl.textContent = "Autonomous core active. Loading data stream...";
 
-        // --- 2. GLOBAL VIEWPORT RUNTIME ENGINE HANDLERS ---
+        // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
@@ -102,6 +102,7 @@
             posMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444, transparent: true, opacity: 0.75, side: THREE.DoubleSide, shininess: 40 });
             negMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff, transparent: true, opacity: 0.75, side: THREE.DoubleSide, shininess: 40 });
 
+            // Atomic Core Base mesh setup
             const coreGeo = new THREE.SphereGeometry(1.2, 32, 32);
             const coreMat = new THREE.MeshPhongMaterial({ color: 0xccd7e6, shininess: 80 });
             const coreMesh = new THREE.Mesh(coreGeo, coreMat);
@@ -124,7 +125,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]); 
         }
 
-        // --- 3. 100% OFFLINE REGEXP TOKEN STREAM PARSER ---
+        // --- 3. TARGETED G09 SPECIFIC VOLUMETRIC DATA PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -136,44 +137,51 @@
                 if (!response.ok) throw new Error("Local dataset stream read failure.");
                 const text = await response.text();
                 
-                statusEl.textContent = "Parsing cube metadata tokens...";
+                statusEl.textContent = "Parsing G09 matrix headers...";
                 
-                // Eradicate all Windows/Linux line endings and split cleanly by any whitespace character
+                // Break file cleanly by any string space or line break globally
                 const tokens = text.trim().split(/\s+/);
                 
-                // Linear scan to bypass comment labels and isolate the atom count integer
-                let idx = 0;
+                // Bypass comment lines to find the atom count row
+                let ptr = 0;
                 let atomCount = NaN;
-                while (idx < tokens.length) {
-                    let val = parseInt(tokens[idx]);
-                    // Identify the true header start point by validating it is an integer and contains no floating dots
-                    if (!isNaN(val) && tokens[idx].indexOf('.') === -1) {
+                while (ptr < tokens.length) {
+                    let val = parseInt(tokens[ptr]);
+                    if (!isNaN(val) && tokens[ptr].indexOf('.') === -1 && tokens[ptr] !== "0") {
                         atomCount = val;
                         break;
                     }
-                    idx++;
+                    ptr++;
                 }
                 
-                if (isNaN(atomCount)) throw new Error("Missing structural header mapping.");
+                if (isNaN(atomCount)) throw new Error("Could not find G09 structural indices.");
+
+                let numAtoms = Math.abs(atomCount);
+
+                // Step 2: Read specific Voxel mesh bounds dimensions directly from token offsets
+                ptr++; const countX = Math.abs(parseInt(tokens[ptr]));
+                ptr += 4; const countY = Math.abs(parseInt(tokens[ptr]));
+                ptr += 4; const countZ = Math.abs(parseInt(tokens[ptr]));
                 
-                // Extrapolate voxel counts directly from the numeric stream positions
-                idx++; const countX = Math.abs(parseInt(tokens[idx]));
-                idx += 4; const countY = Math.abs(parseInt(tokens[idx]));
-                idx += 4; const countZ = Math.abs(parseInt(tokens[idx]));
+                // Step 3: Advance pointer exactly past remaining grid vectors and atom descriptors
+                ptr += 4; 
+                ptr += (numAtoms * 5); // Excludes ligand structural matrices lines cleanly
                 
-                // Skip the atomic spatial coordinate assignments safely
-                idx += 4;
-                let totalAtoms = Math.abs(atomCount);
-                idx += (totalAtoms * 5);
+                // Step 4: G09 structural fix: look for the trailing MO record indicator line (e.g., 1  59)
+                let numOrbitals = parseInt(tokens[ptr]);
+                if (!isNaN(numOrbitals) && tokens[ptr].indexOf('.') === -1) {
+                    // Skip both the orbital count (1) and orbital index number (59) to isolate density values
+                    ptr += 2; 
+                }
                 
-                // Extract all trailing data matrices as clean floating density coefficients
+                // Step 5: Map remaining float coefficients stream straight into densities memory field arrays
                 let volumetricValuesGrid = [];
-                while (idx < tokens.length) {
-                    let elementFloat = parseFloat(tokens[idx]);
-                    if (!isNaN(elementFloat)) {
-                        volumetricValuesGrid.push(elementFloat);
+                while (ptr < tokens.length) {
+                    let floatVal = parseFloat(tokens[ptr]);
+                    if (!isNaN(floatVal)) {
+                        volumetricValuesGrid.push(floatVal);
                     }
-                    idx++;
+                    ptr++;
                 }
                 
                 currentVolumetricData = {
@@ -193,7 +201,7 @@
             }
         }
 
-        // --- 4. HARDWARE ISOSURFACE MATRIX CALCULATION (MARCHING CUBES) ---
+        // --- 4. SURFACE CONTOUR CALCULATOR (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -213,7 +221,7 @@
             const ny = currentVolumetricData.ny;
             const nz = currentVolumetricData.nz;
             
-            // Filter outer shell grids coordinates arrays to eliminate trailing plane artifacts
+            // Explicitly clip outer voxel bounds frames to drop plane slicing boundary artifacts completely
             for (let x = 1; x < res - 1; x++) {
                 for (let y = 1; y < res - 1; y++) {
                     for (let z = 1; z < res - 1; z++) {
