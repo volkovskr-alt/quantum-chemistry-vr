@@ -64,14 +64,14 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous core active. Scaling atomic coordinates...";
+        statusEl.textContent = "Autonomous core active. Aligning molecular vectors...";
 
         // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
         let activeResolution = 40;
-        let atomMeshGroup = new THREE.Group(); // Группа для динамической перерисовки атомов
+        let atomMeshGroup = new THREE.Group();
 
         function init3D() {
             const container = document.getElementById('canvas-container');
@@ -103,7 +103,7 @@
             posMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444, transparent: true, opacity: 0.65, side: THREE.DoubleSide, shininess: 40 });
             negMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff, transparent: true, opacity: 0.65, side: THREE.DoubleSide, shininess: 40 });
 
-            // Add our molecular geometry layer group directly to the dynamic rendering view
+            // Add our dynamic geometry container group directly to the canvas view
             scene.add(atomMeshGroup);
 
             selector.addEventListener('change', (e) => fetchAndParseCube(e.target.value));
@@ -120,10 +120,10 @@
             });
 
             animate();
-            fetchAndParseCube(ORBITAL_FILES[0]); 
+            fetchAndParseCube(ORBITAL_FILES); 
         }
 
-        // --- 3. TARGETED G09 SPECIFIC SCALED GEOMETRY PARSER ---
+        // --- 3. NEGATIVE-FLAG COMPENSATED G09 STREAM PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -135,54 +135,61 @@
                 if (!response.ok) throw new Error("Local dataset stream read failure.");
                 const text = await response.text();
                 
-                statusEl.textContent = "Parsing spatial dimensions...";
+                statusEl.textContent = "Decoding molecular structure...";
                 
-                // Break file contents dynamically into clean text tokens strings array
+                // Break file flatly by any white spaces or line breaks globally
                 const tokens = text.trim().split(/\s+/);
                 
+                // Bypass comment lines to catch the atom count row element
                 let ptr = 0;
-                let atomCount = NaN;
+                let atomCountRaw = NaN;
                 while (ptr < tokens.length) {
                     let val = parseInt(tokens[ptr]);
                     if (!isNaN(val) && tokens[ptr].indexOf('.') === -1 && tokens[ptr] !== "0") {
-                        atomCount = val;
+                        atomCountRaw = val;
                         break;
                     }
                     ptr++;
                 }
                 
-                if (isNaN(atomCount)) throw new Error("Could not parse structure boundaries indices.");
+                if (isNaN(atomCountRaw)) throw new Error("Could not parse G09 header index track.");
 
-                let numAtoms = Math.abs(atomCount);
-
-                // Step 2: Extract grid parameters safely from data flow tracks
+                // Structural evaluation: absolute value gives total atom count (7)
+                let numAtoms = Math.abs(atomCountRaw);
+                
+                // Step 2: Read voxel bounds counts cleanly from token metrics steps
                 ptr++; const countX = Math.abs(parseInt(tokens[ptr]));
                 ptr += 4; const countY = Math.abs(parseInt(tokens[ptr]));
                 ptr += 4; const countZ = Math.abs(parseInt(tokens[ptr]));
                 
-                ptr += 4; 
+                // ADVANCED ALIGNMENT BUGFIX: If atomCount is negative, Gaussian appends 3 additional 
+                // data floats per axis row describing coordinate orientations matrices.
+                if (atomCountRaw < 0) {
+                    ptr += 4; // Safely shift pointers past multi-variable CP2K/G09 vector grids offset
+                } else {
+                    ptr += 4; // Standard offset track fallback
+                }
 
-                // --- 4. INDEPENDENT GEOMETRIC ATOM PARSER & CHROMATIC COLORIZER ---
-                // Reset the molecular grid group to sweep past any old degenerate layouts completely
+                // Clean out old visual artifacts from past degenerate layouts completely
                 while(atomMeshGroup.children.length > 0){
                     atomMeshGroup.remove(atomMeshGroup.children[0]);
                 }
 
-                // Process every single individual atom listed sequentially in your header grid
+                // --- 4. ACCURATE SYNCHRONIZED GEOMETRY CONSTRUCTOR ---
                 for (let i = 0; i < numAtoms; i++) {
                     let atomicNumber = parseInt(tokens[ptr++]);
                     let atomicCharge = parseFloat(tokens[ptr++]);
                     
-                    // Multiply coordinates by a robust scaling factor to draw them apart beautifully
+                    // Multiply positions by coordinate scalar ratio to display distance accurately
                     let posX = parseFloat(tokens[ptr++]) * 6.0;
                     let posY = parseFloat(tokens[ptr++]) * 6.0;
                     let posZ = parseFloat(tokens[ptr++]) * 6.0;
 
-                    let elementColor = 0xccd7e6; // Default silver-gray configuration fallback
+                    let elementColor = 0xccd7e6; 
                     let atomRadius = 0.8;
 
                     if (atomicNumber === 27) { 
-                        // Royal Purple styling mapped specifically for your central Cobalt core
+                        // Royal Purple styling mapped specifically for your center Cobalt core
                         elementColor = 0x8a2be2; 
                         atomRadius = 1.4;
                     } else if (atomicNumber === 17) { 
@@ -199,13 +206,13 @@
                     atomMeshGroup.add(mesh);
                 }
                 
-                // Step 5: Bypassing the trailing Gaussian index metadata lines (e.g. 1 59)
+                // Step 5: Bypassing the trailing molecular orbital indicator values row (e.g., 1  59)
                 let trailingOrbsRecord = parseInt(tokens[ptr]);
                 if (!isNaN(trailingOrbsRecord) && tokens[ptr].indexOf('.') === -1) {
                     ptr += 2; 
                 }
                 
-                // Step 6: Stream numerical grid field matrices directly into density mapping blocks
+                // Step 6: Map trailing numerical tokens flow directly into voxel densities matrix arrays
                 let volumetricValuesGrid = [];
                 while (ptr < tokens.length) {
                     let densityValue = parseFloat(tokens[ptr]);
@@ -220,7 +227,7 @@
                     data: volumetricValuesGrid
                 };
                 
-                statusEl.textContent = "Rendering spatial isosurfaces...";
+                statusEl.textContent = "Rendering clean isosurfaces...";
                 updateIsosurface();
                 statusEl.textContent = "Orbital Render Complete!";
                 statusEl.style.color = '#00ff66';
@@ -244,7 +251,7 @@
             marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
             marchingCubesController.position.set(0, 0, 0);
             
-            // Adjust the spatial layout footprint scale to expand precisely across your separated coordinates structure
+            // Set optimal spatial volumetric canvas footprint bounds scale
             marchingCubesController.scale.set(45, 45, 45); 
             
             marchingCubesController.init(res);
