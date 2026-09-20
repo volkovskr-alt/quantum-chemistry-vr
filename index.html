@@ -2,27 +2,27 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Professional Quantum Chemistry 3Dmol Laboratory</title>
+    <title>Transparent Debugging 3Dmol Laboratory</title>
     <style>
         body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
-        #ui-panel { position: absolute; top: 15px; left: 15px; background: rgba(15, 15, 25, 0.9); padding: 15px; border-radius: 10px; border: 1px solid #333d52; z-index: 10; color: #fff; width: 250px; }
+        #ui-panel { position: absolute; top: 15px; left: 15px; background: rgba(15, 15, 25, 0.9); padding: 15px; border-radius: 10px; border: 1px solid #333d52; z-index: 10; color: #fff; width: 320px; }
         h1 { font-size: 14px; margin: 0 0 10px 0; color: #8a9eff; text-transform: uppercase; letter-spacing: 1px; }
-        #status { font-size: 11px; color: #00ffcc; font-family: monospace; }
+        #status { font-size: 11px; color: #00ffcc; font-family: monospace; white-space: pre-wrap; word-break: break-all; }
     </style>
     
-    <!-- 1. Высокоскоростной защищенный слой jQuery (необходим для запуска 3Dmol) -->
+    <!-- Подключаем связующий слой jQuery -->
     <script src="https://jquery.com"></script>
     
-    <!-- 2. Ваши локальные файлы ядра из вашего репозитория GitHub -->
+    <!-- Подключаем ваши локальные файлы из репозитория -->
     <script src="js/three.min.js"></script>
     <script src="3Dmol-min.js"></script>
 </head>
 <body>
 
     <div id="ui-panel">
-        <h1>⚛️ Local 3Dmol Engine</h1>
-        <div id="status">Initializing WebGL2 canvas...</div>
+        <h1>⚛️ Debug Console Active</h1>
+        <div id="status">Initializing system tracks...</div>
     </div>
 
     <div id="canvas-container"></div>
@@ -33,40 +33,37 @@
             const cubeUrl = "data/b1h.cub";
             
             try {
-                statusEl.textContent = "Fetching local Cube data stream...";
-                
-                // 1. Асинхронно скачиваем ваш реальный квантовый куб чисел
+                statusEl.textContent = "Step 1: Fetching local Cube file stream...";
                 const response = await fetch(cubeUrl);
-                if(!response.ok) throw new Error("Local dataset file read failure.");
+                if(!response.ok) throw new Error("HTTP Network Error: Could not fetch 'data/b1h.cub'. Status: " + response.status);
+                
                 const cubeDataText = await response.text();
+                statusEl.textContent = "Step 2: File successfully downloaded. File size: " + cubeDataText.length + " characters.\nParsing Gaussian matrix...";
                 
-                statusEl.textContent = "Deploying WebGL2 Isosurfaces...";
-                
-                // 2. Инициализируем высокопроизводительный WebGL-контейнер
+                // Инициализируем 3D контейнер
                 const element = $('#canvas-container');
                 const viewer = $3Dmol.createViewer(element, { backgroundColor: '#05050a' });
                 
-                // 3. Передаем сырой текст файла прямо в аппаратный бинарный парсер движка
+                // Передаем куб в парсер
                 viewer.addModel(cubeDataText, "cube");
                 
-                // Отрисовка физических атомов комплекса (классические сферы CPK)
-                viewer.setStyle({}, {sphere: {scale: 0.25}});
+                statusEl.textContent = "Step 3: Structure parsed. Calculating WebGL Isosurfaces...";
                 
-                // Рендеринг истинных волновых лопастей d-орбитали прямо на видеокарте (GPU)
-                // Порог изоповерхности выставлен на идеальный физический уровень 0.015
+                viewer.setStyle({}, {sphere: {scale: 0.25}});
                 viewer.addIsosurface({}, {isoval: 0.015, color: '#ff4444', opacity: 0.70});
                 viewer.addIsosurface({}, {isoval: -0.015, color: '#4444ff', opacity: 0.70});
                 
-                // Автоматическое центрирование осей и масштабирование сцены
                 viewer.zoomTo();
                 viewer.render();
                 
-                statusEl.textContent = "Orbital Render Complete!";
+                statusEl.textContent = "SUCCESS: Orbital Render Complete!";
                 statusEl.style.color = "#00ff66";
                 
             } catch (err) {
-                statusEl.textContent = "Error loading local matrix layout.";
-                statusEl.style.color = "#ff4444";
+                // ВЫВОДИМ ПОЛНЫЙ ТЕКСТ СИСТЕМНОЙ ОШИБКИ НА ЭКРАН
+                statusEl.innerHTML = "<span style='color:#ff4444; font-weight:bold;'>CRASH DETECTED:</span><br><br>" + 
+                                     "<b>Message:</b> " + err.message + "<br><br>" +
+                                     "<b>Details:</b> <span style='color:#aaa; font-size:10px;'>" + err.stack + "</span>";
                 console.error(err);
             }
         });
