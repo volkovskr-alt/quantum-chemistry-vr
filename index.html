@@ -33,10 +33,48 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Secure Unpkg Library Mirror CDNs -->
-    <script src="https://unpkg.com"></script>
-    <script src="https://unpkg.com"></script>
-    <script src="https://unpkg.com"></script>
+    <!-- Smart Multi-Route CDN Loading Engine -->
+    <script>
+        // Automated script injection mechanism to bypass regional CDN server freezes
+        function loadScriptChain(urls, callback) {
+            let index = 0;
+            function tryNext() {
+                if (index >= urls.length) {
+                    console.error("All library network routes failed.");
+                    return;
+                }
+                let script = document.createElement('script');
+                script.src = urls[index++];
+                script.onload = () => {
+                    if (urls.length > index) tryNext(); // Load subsequent sub-modules
+                    else callback();
+                };
+                script.onerror = () => {
+                    console.warn(`Route failed: ${script.src}. Switching network paths...`);
+                    tryNext();
+                };
+                document.head.appendChild(script);
+            }
+            tryNext();
+        }
+
+        // Parallel network arrays to ensure Three.js graphics initialization runs globally
+        const threeCoreUrls = [
+            "https://cloudflare.com",
+            "https://unpkg.com",
+            "https://jsdelivr.net"
+        ];
+        const controlsUrls = [
+            "https://cloudflare.com",
+            "https://unpkg.com",
+            "https://jsdelivr.net"
+        ];
+        const marchingCubesUrls = [
+            "https://jsdelivr.net",
+            "https://unpkg.com",
+            "https://jsdelivr.net"
+        ];
+    </script>
 
     <script>
         // --- 1. INSTANT DROPDOWN INITIALIZER ---
@@ -65,17 +103,29 @@
 
         const statusEl = document.getElementById('status');
         statusEl.textContent = "Interface ready. Booting 3D engine...";
-
-        // --- 2. 3D GLOBAL RUNTIME ENGINE HANDLERS ---
+                // --- 2. 3D GLOBAL RUNTIME ENGINE HANDLERS ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
         let activeResolution = 40;
 
+        function runLibraryLoader() {
+            statusEl.textContent = "Negotiating secure network pipelines...";
+            // Automatically sequence the fallback loading chain for the 3 graphics sub-modules
+            loadScriptChain([threeCoreUrls[0], controlsUrls[0]], () => {
+                loadScriptChain([marchingCubesUrls[0]], () => {
+                    init3D();
+                });
+            });
+        }
+
         function init3D() {
             if (typeof THREE === 'undefined' || typeof THREE.MarchingCubes === 'undefined') {
-                statusEl.textContent = "Waiting for 3D core components...";
-                setTimeout(init3D, 500);
+                statusEl.textContent = "Retrying fallback server routes...";
+                // Fallback attempt: Force backup unpkg mirrors to inject objects if primary failed
+                loadScriptChain([threeCoreUrls[1], controlsUrls[1], marchingCubesUrls[1]], () => {
+                    setTimeout(init3D, 500);
+                });
                 return;
             }
 
@@ -90,6 +140,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             container.appendChild(renderer.domElement);
+
             controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
@@ -145,11 +196,16 @@
                 statusEl.textContent = "Parsing cube data matrix...";
                 const lines = text.split('\n');
                 
-                // Parse voxel count from rows 2, 3, 4, 5 of standard cube file format
-                const atomCount = parseInt(lines[2].trim().split(/\s+/)[0]);
-                const countX = parseInt(lines[3].trim().split(/\s+/)[0]);
-                const countY = parseInt(lines[4].trim().split(/\s+/)[0]);
-                const countZ = parseInt(lines[5].trim().split(/\s+/)[0]);
+                // Securely isolate the header metrics array split lengths
+                const atomLine = lines[2].trim().split(/\s+/);
+                const xLine = lines[3].trim().split(/\s+/);
+                const yLine = lines[4].trim().split(/\s+/);
+                const zLine = lines[5].trim().split(/\s+/);
+
+                const atomCount = parseInt(atomLine[0]);
+                const countX = parseInt(xLine[0]);
+                const countY = parseInt(yLine[0]);
+                const countZ = parseInt(zLine[0]);
                 
                 let dataStartLine = 6 + Math.abs(atomCount);
                 let values = [];
@@ -226,7 +282,8 @@
             }
         }
         
-        init3D();
+        // Execute loader engine sequence
+        runLibraryLoader();
     </script>
 </body>
 </html>
