@@ -2,349 +2,73 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Quantum Chemistry VR Sandbox</title>
+    <title>Professional Quantum Chemistry 3Dmol Laboratory</title>
     <style>
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; color: #fff; }
-        #ui-container { position: absolute; top: 15px; left: 15px; background: rgba(15, 15, 25, 0.9); padding: 20px; border-radius: 12px; border: 1px solid #333d52; box-shadow: 0 4px 20px rgba(0,0,0,0.5); width: 280px; z-index: 10; }
-        h1 { font-size: 16px; margin: 0 0 15px 0; color: #8a9eff; text-transform: uppercase; letter-spacing: 1px; }
-        .control-group { margin-bottom: 15px; }
-        label { display: block; font-size: 12px; color: #aaa; margin-bottom: 5px; }
-        select, input[type="range"] { width: 100%; padding: 8px; background: #1a1b26; border: 1px solid #444; color: #fff; border-radius: 6px; box-sizing: border-box; }
-        #status { font-size: 11px; color: #00ffcc; margin-top: 10px; font-family: monospace; }
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #05050a; font-family: sans-serif; }
         #canvas-container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
+        #ui-panel { position: absolute; top: 15px; left: 15px; background: rgba(15, 15, 25, 0.9); padding: 15px; border-radius: 10px; border: 1px solid #333d52; z-index: 10; color: #fff; width: 250px; }
+        h1 { font-size: 14px; margin: 0 0 10px 0; color: #8a9eff; text-transform: uppercase; letter-spacing: 1px; }
+        #status { font-size: 11px; color: #00ffcc; font-family: monospace; }
     </style>
+    <!-- Подключение официального профессионального молекулярного ядра 3Dmol.js -->
+    <script src="https://3dmol.org"></script>
+    <script src="https://jquery.com"></script>
 </head>
 <body>
 
-    <div id="ui-container">
-        <h1>⚛️ NTO Visualizer</h1>
-        <div class="control-group">
-            <label for="orbital-selector">Select Orbital Pair</label>
-            <select id="orbital-selector"></select>
-        </div>
-        <div class="control-group">
-            <label for="isovalue-slider">Isovalue (Density Threshold)</label>
-            <input type="range" id="isovalue-slider" min="0.001" max="0.05" step="0.001" value="0.015">
-            <span id="slider-val" style="font-size: 11px; color: #8a9eff;">0.015</span>
-        </div>
-        <div id="status">Warming up visualizer arrays...</div>
+    <div id="ui-panel">
+        <h1>⚛️ 3Dmol Engine Active</h1>
+        <div id="status">Streaming quantum matrix...</div>
     </div>
 
     <div id="canvas-container"></div>
 
-    <!-- Локальные библиотеки 3D движка -->
-    <script src="js/three.min.js"></script>
-    <script src="js/OrbitControls.js"></script>
-    <script src="js/MarchingCubes.js"></script>
-
     <script>
-        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ВЫПАДАЮЩЕГО СПИСКА ---
-        const ORBITAL_FILES = [
-            "b1h.cub", "b1e.cub",
-            "b2h.cub", "b2e.cub",
-            "b3h.cub", "b3e.cub",
-            "b4h.cub", "b4e.cub",
-            "b5h.cub", "b5e.cub",
-            "b6h.cub", "b6e.cub",
-            "b7h.cub", "b7e.cub",
-            "b8h.cub", "b8e.cub",
-            "b9h.cub", "b9e.cub",
-            "b10h.cub", "b10e.cub",
-            "b11h.cub", "b11e.cub",
-            "b12h.cub", "b12e.cub"
-        ];
-
-        const selector = document.getElementById('orbital-selector');
-        ORBITAL_FILES.forEach(file => {
-            const opt = document.createElement('option');
-            opt.value = file;
-            opt.textContent = file.replace('.cub', '').toUpperCase();
-            selector.appendChild(opt);
-        });
-
-        const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous engine active. Deploying 3D buffer...";
-
-        // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
-        let scene, camera, renderer, controls;
-        let posMaterial, negMaterial, marchingCubesController;
-        let currentVolumetricData = null;
-        let activeResolution = 40; // Идеальный равносторонний куб 40x40x40
-        let atomMeshGroup = new THREE.Group();
-
-        function init3D() {
-            const container = document.getElementById('canvas-container');
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x05050a);
-
-            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(45, 45, 85);
-
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setPixelRatio(window.devicePixelRatio);
-            container.appendChild(renderer.domElement);
-                        controls = new THREE.OrbitControls(camera, renderer.domElement);
-            controls.enableDamping = true;
-            controls.dampingFactor = 0.05;
-
-            const ambientLight = new THREE.AmbientLight(0x555555);
-            scene.add(ambientLight);
-
-            const dirLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
-            dirLight1.position.set(1, 1, 1).normalize();
-            scene.add(dirLight1);
-
-            const dirLight2 = new THREE.DirectionalLight(0x7788ff, 0.4);
-            dirLight2.position.set(-1, -1, -1).normalize();
-            scene.add(dirLight2);
-
-            posMaterial = new THREE.MeshPhongMaterial({ color: 0xff4444, transparent: true, opacity: 0.65, side: THREE.DoubleSide, shininess: 40 });
-            negMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff, transparent: true, opacity: 0.65, side: THREE.DoubleSide, shininess: 40 });
-
-            scene.add(atomMeshGroup);
-
-            selector.addEventListener('change', (e) => fetchAndParseCube(e.target.value));
+        $(document).ready(async function() {
+            const statusEl = document.getElementById('status');
             
-            document.getElementById('isovalue-slider').addEventListener('input', (e) => {
-                document.getElementById('slider-val').textContent = parseFloat(e.target.value).toFixed(3);
-                updateIsosurface();
-            });
-
-            window.addEventListener('resize', () => {
-                camera.aspect = window.innerWidth / window.innerHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(window.innerWidth, window.innerHeight);
-            });
-
-            animate();
-            
-            setTimeout(() => {
-                fetchAndParseCube(ORBITAL_FILES[0]); 
-            }, 300);
-        }
-
-        // --- 3. HIGH-PERFORMANCE SYMMETRIC BUFFER MAPPED PARSER ---
-        async function fetchAndParseCube(fileName) {
-            statusEl.textContent = `Fetching local ${fileName.toUpperCase()}...`;
-            statusEl.style.color = '#00ffcc';
-            
-            const targetUrl = `data/${fileName}`;
+            // Наш целевой файл, который мы выстрадали и настроили на GitHub
+            const cubeUrl = "data/b1h.cub";
             
             try {
-                const response = await fetch(targetUrl);
-                if (!response.ok) throw new Error("Local dataset stream read failure.");
-                const rawText = await response.text();
+                // 1. Создаем профессиональный WebGL-холст со сглаживанием внутри контейнера
+                const element = $('#canvas-container');
+                const config = { backgroundColor: '#05050a' };
+                const viewer = $3Dmol.createViewer(element, config);
                 
-                statusEl.textContent = "Translating calculation coefficients...";
+                statusEl.textContent = "Fetching local Cube stream...";
                 
-                // Eradicate legacy Fortran scientific notation markers (D -> E)
-                const cleanText = rawText.replace(/D([+-])/gi, 'E\$1');
-                const tokens = cleanText.trim().split(/\s+/);
+                // 2. Скачиваем файл по сети через асинхронный буфер
+                const response = await fetch(cubeUrl);
+                if(!response.ok) throw new Error("Network dataset read failure.");
+                const cubeDataText = await response.text();
                 
-                while(atomMeshGroup.children.length > 0){
-                    atomMeshGroup.remove(atomMeshGroup.children);
-                }
-
-                // Step 1: Scan numbers track sequence to extract header landmarks
-                let ptr = 0;
-                let atomCountRaw = NaN;
-                while (ptr < tokens.length) {
-                    let val = parseInt(tokens[ptr]);
-                    if (!isNaN(val) && tokens[ptr].indexOf('.') === -1 && tokens[ptr] !== "0") {
-                        atomCountRaw = val;
-                        break;
-                    }
-                    ptr++;
-                }
-
-                if (isNaN(atomCountRaw)) throw new Error("Could not parse dataset structural headers.");
-                let numAtoms = Math.abs(atomCountRaw);
-
-                ptr++;
-                let dimensions = [];
-                while (ptr < tokens.length && dimensions.length < 3) {
-                    let possibleDimToken = tokens[ptr];
-                    let intCheck = parseInt(possibleDimToken);
-                    
-                    if (!isNaN(intCheck) && possibleDimToken.indexOf('.') === -1 && intCheck > 0) {
-                        dimensions.push(intCheck);
-                        ptr += 4; 
-                        continue;
-                    }
-                    ptr++;
-                }
-
-                if (dimensions.length < 3) throw new Error("Invalid or cropped grid dimension paths mapping.");
+                statusEl.textContent = "Rendering hardware Isosurfaces...";
                 
-                const countX = dimensions[0];
-                const countY = dimensions[1];
-                const countZ = dimensions[2];
-
-                // Step 2: Linear Spectroscopic Geometry Loader
-                let atomsProcessed = 0;
-                while (ptr < tokens.length && atomsProcessed < numAtoms) {
-                    let currentTokenInt = parseInt(tokens[ptr]);
-                    
-                    if (currentTokenInt === 27 || currentTokenInt === 17) {
-                        atomsProcessed++;
-                        ptr += 2; 
-                        
-                        let posX = parseFloat(tokens[ptr++]) * 6.0;
-                        let posY = parseFloat(tokens[ptr++]) * 6.0;
-                        let posZ = parseFloat(tokens[ptr++]) * 6.0;
-
-                        let elementColor = 0xccd7e6; 
-                        let atomRadius = 0.8;
-
-                        if (currentTokenInt === 27) {
-                            elementColor = 0x8a2be2; // Royal Purple Cobalt
-                            atomRadius = 1.4;
-                        } else if (currentTokenInt === 17) {
-                            elementColor = 0x32cd32; // Neon Green Chlorines
-                            atomRadius = 1.0;
-                        }
-
-                        let geom = new THREE.SphereGeometry(atomRadius, 32, 32);
-                        let mat = new THREE.MeshPhongMaterial({ color: elementColor, shininess: 80, specular: 0x444444 });
-                        let mesh = new THREE.Mesh(geom, mat);
-                        
-                        mesh.position.set(posX, posY, posZ);
-                        atomMeshGroup.add(mesh);
-                        continue;
-                    }
-                    ptr++;
-                }
-                               // Step past the trailing records indicator labels (e.g. 1 59 or 1 1) securely
-                while (ptr < tokens.length) {
-                    let valStr = tokens[ptr];
-                    if (valStr.indexOf('.') !== -1) {
-                        let parsedTest = parseFloat(valStr);
-                        // True electron densities start when encountering values bounded smaller than 1.0
-                        if (!isNaN(parsedTest) && Math.abs(parsedTest) < 1.0 && parsedTest !== 0) {
-                            break; 
-                        }
-                    }
-                    ptr++;
-                }
-
-                // --- 5. FIELD COEFFICIENTS DATA EXTRACTION ---
-                let volumetricValuesGrid = [];
-                for (let k = ptr; k < tokens.length; k++) {
-                    let densityValue = parseFloat(tokens[k]);
-                    if (!isNaN(densityValue)) {
-                        volumetricValuesGrid.push(densityValue);
-                    }
-                }
+                // 3. Скармливаем весь куб целиком в 3Dmol — он сам нарисует и атомы, и орбитали!
+                viewer.addModel(cubeDataText, "cube");
                 
-                currentVolumetricData = {
-                    nx: countX, ny: countY, nz: countZ,
-                    data: volumetricValuesGrid
-                };
+                // Настройка отображения атомов: классические сферы CPK
+                viewer.setStyle({}, {sphere: {scale: 0.3}});
                 
-                statusEl.textContent = "Interpolating grid matrices...";
-                updateIsosurface();
+                // Настройка волновой функции: мгновенный расчет положительной и отрицательной фаз d-орбитали!
+                // Порог изоповерхности жестко зафиксирован на вашем идеальном физическом уровне 0.015
+                viewer.addIsosurface({}, {isoval: 0.015, color: 'red', opacity: 0.65});
+                viewer.addIsosurface({}, {isoval: -0.015, color: 'blue', opacity: 0.65});
+                
+                // Автоматически центрируем камеру и масштабируем сцену под размеры октаэдра
+                viewer.zoomTo();
+                viewer.render();
+                
                 statusEl.textContent = "Orbital Render Complete!";
-                statusEl.style.color = '#00ff66';
+                statusEl.style.color = "#00ff66";
                 
             } catch (err) {
-                statusEl.textContent = `Error processing cube matrix.`;
-                statusEl.style.color = '#ff4444';
+                statusEl.textContent = "Error rendering 3Dmol canvas.";
+                statusEl.style.color = "#ff4444";
                 console.error(err);
             }
-        }
-
-        // --- 6. TRILINEAR INTERPOLATION MARCHING CUBES LAYER ---
-        function updateIsosurface() {
-            if (!currentVolumetricData || !scene) return;
-            
-            if (marchingCubesController) scene.remove(marchingCubesController);
-            
-            const isovalue = parseFloat(document.getElementById('isovalue-slider').value);
-            const res = activeResolution; // High resolution 40x40x40 symmetric grid
-            
-            marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
-            marchingCubesController.position.set(0, 0, 0);
-            marchingCubesController.scale.set(45, 45, 45); 
-            
-            marchingCubesController.init(res);
-            
-            const data = currentVolumetricData.data;
-            const nx = currentVolumetricData.nx; 
-            const ny = currentVolumetricData.ny; 
-            const nz = currentVolumetricData.nz; 
-
-            // ASYMMETRIC TRILINEAR INTERPOLATION ENGINE: Maps the rectangular data grid 
-            // proportionally into the symmetric 3D coordinate space safely.
-            for (let x = 0; x < res; x++) {
-                for (let y = 0; y < res; y++) {
-                    for (let z = 0; z < res; z++) {
-                        
-                        // Map the cube index to a fractional coordinate within the asymmetric file bounds
-                        let fx = (x / (res - 1)) * (nx - 1);
-                        let fy = (y / (res - 1)) * (ny - 1);
-                        let fz = (z / (res - 1)) * (nz - 1);
-                        
-                        // Isolate floor and ceiling bounding matrix steps
-                        let x0 = Math.floor(fx); let x1 = Math.min(x0 + 1, nx - 1);
-                        let y0 = Math.floor(fy); let y1 = Math.min(y0 + 1, ny - 1);
-                        let z0 = Math.floor(fz); let z1 = Math.min(z0 + 1, nz - 1);
-                        
-                        // Calculate tracking weight increments fractions
-                        let xd = fx - x0;
-                        let yd = fy - y0;
-                        let zd = fz - z0;
-                        
-                        // Core row-major offset calculations mapping
-                        let idx000 = x0 * (ny * nz) + y0 * nz + z0;
-                        let idx001 = x0 * (ny * nz) + y0 * nz + z1;
-                        let idx010 = x0 * (ny * nz) + y1 * nz + z0;
-                        let idx011 = x0 * (ny * nz) + y1 * nz + z1;
-                        let idx100 = x1 * (ny * nz) + y0 * nz + z0;
-                        let idx101 = x1 * (ny * nz) + y0 * nz + z1;
-                        let idx110 = x1 * (ny * nz) + y1 * nz + z0;
-                        let idx111 = x1 * (ny * nz) + y1 * nz + z1;
-                        
-                        // Retrieve surrounding structural densities nodes
-                        let c000 = data[idx000] || 0;
-                        let c001 = data[idx001] || 0;
-                        let c010 = data[idx010] || 0;
-                        let c011 = data[idx011] || 0;
-                        let c100 = data[idx100] || 0;
-                        let c101 = data[idx101] || 0;
-                        let c110 = data[idx110] || 0;
-                        let c111 = data[idx111] || 0;
-                        
-                        // Execute trilinear blending coordinates interpolation sequence
-                        let c00 = c000 * (1 - xd) + c100 * xd;
-                        let c01 = c001 * (1 - xd) + c101 * xd;
-                        let c10 = c010 * (1 - xd) + c110 * xd;
-                        let c11 = c011 * (1 - xd) + c111 * xd;
-                        
-                        let c0 = c00 * (1 - yd) + c10 * yd;
-                        let c1 = c01 * (1 - yd) + c11 * yd;
-                        
-                        let finalDensityValue = c0 * (1 - zd) + c1 * zd;
-                        
-                        marchingCubesController.setValue(x, y, z, finalDensityValue);
-                    }
-                }
-            }
-            
-            marchingCubesController.isolation = isovalue;
-            scene.add(marchingCubesController);
-        }
-
-        function animate() {
-            requestAnimationFrame(animate);
-            if (controls && renderer && camera && scene) {
-                controls.update();
-                renderer.render(scene, camera);
-            }
-        }
-        
-        init3D();
+        });
     </script>
 </body>
-</html> 
+</html>
