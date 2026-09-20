@@ -33,7 +33,7 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Локальные модули движка из вашего репозитория -->
+    <!-- Полностью локальное считывание библиотек 3D движка -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
@@ -70,7 +70,7 @@
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
-        let activeResolution = 30; // Оптимальное сбалансированное разрешение для мгновенного WebGL-отклика
+        let activeResolution = 45; // Высокое, красивое разрешение для локальной зоны!
         let atomMeshGroup = new THREE.Group();
 
         function init3D() {
@@ -85,7 +85,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             container.appendChild(renderer.domElement);
-                       controls = new THREE.OrbitControls(camera, renderer.domElement);
+                        controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
 
@@ -121,11 +121,11 @@
             animate();
             
             setTimeout(() => {
-                fetchAndParseCube(ORBITAL_FILES[0]); // Explicitly pull the first text file entry safely
+                fetchAndParseCube(ORBITAL_FILES[0]); 
             }, 300);
         }
 
-        // --- 3. FORTRAN-NEUTRAL HIGH-PERFORMANCE ASYMMETRIC GRID DATA PARSER ---
+        // --- 3. HIGH-PERFORMANCE BUFFERED GRID DATA PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -133,14 +133,11 @@
             const targetUrl = `data/${fileName}`;
             
             try {
-                // Stabilized execution pipeline holding data extraction until file completes loading
                 const response = await fetch(targetUrl);
                 if (!response.ok) throw new Error("Local dataset stream read failure.");
                 const rawText = await response.text();
                 
                 statusEl.textContent = "Translating calculation coefficients...";
-                
-                // Fortran scientific double-precision notation formatting handler (D -> E)
                 const cleanText = rawText.replace(/D([+-])/gi, 'E\$1');
                 const tokens = cleanText.trim().split(/\s+/);
                 
@@ -152,7 +149,7 @@
                 let densityValuesStartPtr = 0;
                 let atomsFoundCounter = 0;
 
-                // Step 1: Scan numbers sequence to parse asymmetric grid metrics row indices
+                // Step 1: Parse grid limits
                 let meshGridsLocated = 0;
                 for (let i = 2; i < tokens.length; i++) {
                     let tokenVal = tokens[i];
@@ -173,7 +170,7 @@
                     }
                 }
 
-                // Step 2: Linear Spectroscopic Geometry Reconstruction Engine
+                // Step 2: Extract Cobalt and Chlorine coordinates natively
                 let scanPtr = densityValuesStartPtr;
                 while (scanPtr < tokens.length && atomsFoundCounter < 7) {
                     let currentInt = parseInt(tokens[scanPtr]);
@@ -190,10 +187,10 @@
                         let atomRadius = 0.8;
 
                         if (currentInt === 27) {
-                            elementColor = 0x8a2be2; // Royal Purple theme color for center Cobalt node
+                            elementColor = 0x8a2be2; // Purple Cobalt
                             atomRadius = 1.4;
                         } else if (currentInt === 17) {
-                            elementColor = 0x32cd32; // Neon Green crown for Chlorine fields
+                            elementColor = 0x32cd32; // Green Chlorines
                             atomRadius = 1.0;
                         }
 
@@ -209,7 +206,7 @@
                     scanPtr++;
                 }
 
-                // Step 3: Stream pointer intercept to clean trailing meta parameters
+                // Step 3: Align pointer stream
                 while (scanPtr < tokens.length) {
                     let valStr = tokens[scanPtr];
                     if (valStr.indexOf('.') !== -1) {
@@ -221,7 +218,7 @@
                     scanPtr++;
                 }
 
-                // Step 4: Map mathematical calculations matrix tokens straight into density arrays
+                // Step 4: Map mathematical calculations matrix
                 let volumetricValuesGrid = [];
                 for (let k = scanPtr; k < tokens.length; k++) {
                     let densityValue = parseFloat(tokens[k]);
@@ -235,7 +232,7 @@
                     data: volumetricValuesGrid
                 };
                 
-                statusEl.textContent = "Recalculating volumetric boundaries...";
+                statusEl.textContent = "Recalculating sub-volume window...";
                 updateIsosurface();
                 statusEl.textContent = "Orbital Render Complete!";
                 statusEl.style.color = '#00ff66';
@@ -247,14 +244,14 @@
             }
         }
 
-        // --- 4. HIGH-PERFORMANCE STRIDED MARCHING CUBES LOOP ---
+        // --- 4. SUB-VOLUME WINDOWING MARCHING CUBES LAYER ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
             if (marchingCubesController) scene.remove(marchingCubesController);
             
             const isovalue = parseFloat(document.getElementById('isovalue-slider').value);
-            const res = activeResolution; // Optimal 30x30x30 matrix execution block
+            const res = activeResolution; // High resolution 45 layout focused tightly in the center
             
             marchingCubesController = new THREE.MarchingCubes(res, posMaterial, true, true, 100000);
             marchingCubesController.position.set(0, 0, 0);
@@ -267,18 +264,22 @@
             const ny = currentVolumetricData.ny; 
             const nz = currentVolumetricData.nz; 
             
-            // OPTIMIZED FIELD ITERATOR: Linear proportional mapping interpolates data coordinates 
-            // smoothly across compressed thread matrices to break hardware bottleneck loops.
+            // SUB-VOLUME FILTER: Sample exclusively from 35% to 65% of the spatial voxel grid limits
+            // This concentrates processing power directly on the reaction zone containing the atoms.
             for (let x = 1; x < res - 1; x++) {
                 for (let y = 1; y < res - 1; y++) {
                     for (let z = 1; z < res - 1; z++) {
-                        let dataX = Math.floor((x / res) * nx);
-                        let dataY = Math.floor((y / res) * ny);
-                        let dataZ = Math.floor((z / res) * nz);
+                        
+                        let normX = 0.35 + (x / res) * 0.30;
+                        let normY = 0.35 + (y / res) * 0.30;
+                        let normZ = 0.35 + (z / res) * 0.30;
+
+                        let dataX = Math.floor(normX * nx);
+                        let dataY = Math.floor(normY * ny);
+                        let dataZ = Math.floor(normZ * nz);
                         
                         let index = dataX * (ny * nz) + dataY * nz + dataZ;
                         
-                        // Strict memory protection guard limit
                         if (index >= 0 && index < data.length) {
                             let val = data[index] || 0;
                             marchingCubesController.setValue(x, y, z, val);
