@@ -121,7 +121,7 @@
             });
 
             animate();
-            fetchAndParseCube(ORBITAL_FILES);
+            fetchAndParseCube(ORBITAL_FILES[0]);
         }
 
         // --- 3. DROPBOX FETCH PIPE & INDESTRUCTIBLE TOKEN STREAM PARSER ---
@@ -138,42 +138,43 @@
                 
                 statusEl.textContent = "Parsing cube data matrix...";
                 
-                // Convert the entire file into a single flat continuous stream of words and numbers
+                // Convert the file text into a single continuous stream array of entries separated by spaces
                 const tokens = text.trim().split(/\s+/);
                 
-                // Step 1: Skip comment labels by scanning for the first valid integer (atom count)
-                let ptr = 0;
+                // Scan the stream linearly to locate the atom count integer (skipping string headers)
+                let cursor = 0;
                 let atomCount = NaN;
-                while (ptr < tokens.length) {
-                    let val = parseInt(tokens.at(ptr));
-                    if (!isNaN(val) && tokens.at(ptr).indexOf('.') === -1) {
+                while (cursor < tokens.length) {
+                    let val = parseInt(tokens[cursor]);
+                    if (!isNaN(val) && tokens[cursor].indexOf('.') === -1) {
                         atomCount = val;
                         break;
                     }
-                    ptr++;
+                    cursor++;
                 }
                 
-                if (isNaN(atomCount)) throw new Error("Missing atom count metadata header.");
+                if (isNaN(atomCount)) throw new Error("Missing structural metadata header.");
                 
-                // Step 2: Read volumetric grid counts cleanly from the stream
-                // Axis rows consist of voxel count followed by X, Y, Z vector increments (skip 3)
-                ptr = ptr + 1; const countX = Math.abs(parseInt(tokens.at(ptr)));
-                ptr = ptr + 4; const countY = Math.abs(parseInt(tokens.at(ptr)));
-                ptr = ptr + 4; const countZ = Math.abs(parseInt(tokens.at(ptr)));
+                // Read grid layout metrics linearly from the current stream index position
+                // Each axis contains voxel step count, followed by X, Y, Z coordinates vector details
+                cursor = cursor + 1; const countX = Math.abs(parseInt(tokens[cursor]));
+                cursor = cursor + 4; const countY = Math.abs(parseInt(tokens[cursor]));
+                cursor = cursor + 4; const countZ = Math.abs(parseInt(tokens[cursor]));
                 
-                // Step 3: Skip atomic coordinate sections (each atom has 5 tokens: number, charge, x, y, z)
-                ptr = ptr + 4;
+                // Skip the remaining coordinates positions describing the atoms block
+                // Each unique atom entry occupies exactly 5 stream tokens: index, charge, x, y, z
+                cursor = cursor + 4;
                 let totalAtoms = Math.abs(atomCount);
-                ptr = ptr + (totalAtoms * 5);
+                cursor = cursor + (totalAtoms * 5);
                 
-                // Step 4: Extract all remaining raw numeric data as densities array map
+                // Read the rest of the numerical stream into the raw density memory array map
                 let values = [];
-                while (ptr < tokens.length) {
-                    let num = parseFloat(tokens.at(ptr));
+                while (cursor < tokens.length) {
+                    let num = parseFloat(tokens[cursor]);
                     if (!isNaN(num)) {
                         values.push(num);
                     }
-                    ptr++;
+                    cursor++;
                 }
                 
                 currentVolumetricData = {
