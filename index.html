@@ -28,12 +28,12 @@
             <input type="range" id="isovalue-slider" min="0.001" max="0.1" step="0.001" value="0.02">
             <span id="slider-val" style="font-size: 11px; color: #8a9eff;">0.020</span>
         </div>
-        <div id="status">Initializing autonomous engine...</div>
+        <div id="status">Initializing 100% offline sandbox...</div>
     </div>
 
     <div id="canvas-container"></div>
 
-    <!-- Полностью локальное считывание библиотек 3D движка -->
+    <!-- Чтение библиотек движка строго локально из вашего собственного репозитория -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
@@ -64,7 +64,7 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Autonomous core active. Connecting Dropbox stream...";
+        statusEl.textContent = "All local cores found. Deploying canvas...";
 
         // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
@@ -121,68 +121,67 @@
             });
 
             animate();
-            fetchAndParseCube(ORBITAL_FILES[0]);
+            fetchAndParseCube(ORBITAL_FILES[0]); 
         }
 
-        // --- 3. DROPBOX FETCH PIPE & INDESTRUCTIBLE TOKEN STREAM PARSER ---
+        // --- 3. 100% OFFLINE TOKEN STREAM DATABOUND PARSER ---
         async function fetchAndParseCube(fileName) {
-            statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
+            statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
             
-            const targetUrl = `https://dropboxusercontent.com{fileName}?rlkey=hdcbhsqucji45kb6cuat0y049&dl=1`;
+            // Read data files straight from your new local repository storage path
+            const targetUrl = `data/${fileName}`;
             
             try {
                 const response = await fetch(targetUrl);
-                if (!response.ok) throw new Error("Data fetch pipe failed.");
+                if (!response.ok) throw new Error("Local dataset stream read failure.");
                 const text = await response.text();
                 
-                statusEl.textContent = "Parsing cube data matrix...";
+                statusEl.textContent = "Parsing cube metadata tokens...";
                 
-                // Convert the file text into a single continuous stream array of entries separated by spaces
+                // Convert the file text layout into a single flat numerical matrix string stream array
                 const tokens = text.trim().split(/\s+/);
                 
-                // Scan the stream linearly to locate the atom count integer (skipping string headers)
-                let cursor = 0;
+                // Locate the primary atom count index (skipping comments strings)
+                let pointer = 0;
                 let atomCount = NaN;
-                while (cursor < tokens.length) {
-                    let val = parseInt(tokens[cursor]);
-                    if (!isNaN(val) && tokens[cursor].indexOf('.') === -1) {
+                while (pointer < tokens.length) {
+                    let val = parseInt(tokens[pointer]);
+                    if (!isNaN(val) && tokens[pointer].indexOf('.') === -1) {
                         atomCount = val;
                         break;
                     }
-                    cursor++;
+                    pointer++;
                 }
                 
-                if (isNaN(atomCount)) throw new Error("Missing structural metadata header.");
+                if (isNaN(atomCount)) throw new Error("Missing coordinate dimensions header mapping.");
                 
-                // Read grid layout metrics linearly from the current stream index position
-                // Each axis contains voxel step count, followed by X, Y, Z coordinates vector details
-                cursor = cursor + 1; const countX = Math.abs(parseInt(tokens[cursor]));
-                cursor = cursor + 4; const countY = Math.abs(parseInt(tokens[cursor]));
-                cursor = cursor + 4; const countZ = Math.abs(parseInt(tokens[cursor]));
+                // Track spatial resolution dimensions cleanly from standard stream positions
+                pointer = pointer + 1; const countX = Math.abs(parseInt(tokens[pointer]));
+                pointer = pointer + 4; const countY = Math.abs(parseInt(tokens[pointer]));
+                pointer = pointer + 4; const countZ = Math.abs(parseInt(tokens[pointer]));
                 
-                // Skip the remaining coordinates positions describing the atoms block
-                // Each unique atom entry occupies exactly 5 stream tokens: index, charge, x, y, z
-                cursor = cursor + 4;
-                let totalAtoms = Math.abs(atomCount);
-                cursor = cursor + (totalAtoms * 5);
+                // Pass atomic details structure block array mapping
+                pointer = pointer + 4;
+                let numericalAtomsCount = Math.abs(atomCount);
+                pointer = pointer + (numericalAtomsCount * 5);
                 
-                // Read the rest of the numerical stream into the raw density memory array map
-                let values = [];
-                while (cursor < tokens.length) {
-                    let num = parseFloat(tokens[cursor]);
-                    if (!isNaN(num)) {
-                        values.push(num);
+                // Assemble all remaining field coefficients straight into structural space coordinates maps
+                let volumetricValuesGrid = [];
+                while (pointer < tokens.length) {
+                    let elementFloat = parseFloat(tokens[pointer]);
+                    if (!isNaN(elementFloat)) {
+                        volumetricValuesGrid.push(elementFloat);
                     }
-                    cursor++;
+                    pointer++;
                 }
                 
                 currentVolumetricData = {
                     nx: countX, ny: countY, nz: countZ,
-                    data: values
+                    data: volumetricValuesGrid
                 };
                 
-                statusEl.textContent = "Recalculating Isosurfaces...";
+                statusEl.textContent = "Rendering clean isosurfaces...";
                 updateIsosurface();
                 statusEl.textContent = "Orbital Render Complete!";
                 statusEl.style.color = '#00ff66';
@@ -194,7 +193,7 @@
             }
         }
 
-        // --- 4. SURFACE CONTOUR CALCULATOR (MARCHING CUBES) ---
+        // --- 4. HARDWARE ISOSURFACE MATRIX CALCULATION (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -214,9 +213,10 @@
             const ny = currentVolumetricData.ny;
             const nz = currentVolumetricData.nz;
             
-            for (let x = 0; x < res; x++) {
-                for (let y = 0; y < res; y++) {
-                    for (let z = 0; z < res; z++) {
+            // Explicitly filter out boundary padding rows to eliminate VMD edge planes artifacts
+            for (let x = 1; x < res - 1; x++) {
+                for (let y = 1; y < res - 1; y++) {
+                    for (let z = 1; z < res - 1; z++) {
                         let dataX = Math.floor((x / res) * nx);
                         let dataY = Math.floor((y / res) * ny);
                         let dataZ = Math.floor((z / res) * nz);
