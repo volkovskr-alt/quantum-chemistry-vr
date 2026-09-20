@@ -33,13 +33,13 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Полностью локальная загрузка 3D-архитектуры -->
+    <!-- Reads ALL 3D engine assets locally from your own repository folder -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
 
     <script>
-        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ВЫПАДАЮЩЕГО СПИСКА ---
+        // --- 1. DROPDOWN MATRIX INITIALIZER ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -66,7 +66,6 @@
         const statusEl = document.getElementById('status');
         statusEl.textContent = "Autonomous core active. Loading data stream...";
 
-        // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
@@ -124,7 +123,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]);
         }
 
-        // --- 3. DROPBOX DATA FETCH PIPE & CORRECTED ROW PARSER ---
+        // --- 3. DROPBOX DATA FETCH PIPE & CORRECTED ARRAY PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -139,7 +138,7 @@
                 statusEl.textContent = "Parsing cube data matrix...";
                 const lines = text.split('\n');
                 
-                // Corrected row-indexed headers extraction using standard square brackets arrays mapping
+                // Fixed numerical array extraction mapping matching standard cube file format
                 const atomCount = parseInt(lines[2].trim().split(/\s+/)[0]);
                 const countX = parseInt(lines[3].trim().split(/\s+/)[0]);
                 const countY = parseInt(lines[4].trim().split(/\s+/)[0]);
@@ -220,7 +219,6 @@
             }
         }
         
-        // Launch clean autonomous runtime engine
         init3D();
     </script>
 </body>
