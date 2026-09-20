@@ -33,13 +33,13 @@
 
     <div id="canvas-container"></div>
 
-    <!-- 100% Local engine endpoints hosted in your workspace -->
+    <!-- Полностью локальное считывание библиотек 3D движка -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
 
     <script>
-        // --- 1. MOLECULAR ORBITAL DESCRIPTOR MATRIX ---
+        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ВЫПАДАЮЩЕГО СПИСКА ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -66,7 +66,7 @@
         const statusEl = document.getElementById('status');
         statusEl.textContent = "Autonomous engine active. Synchronizing core...";
 
-        // --- 2. GLOBAL VIEWPORT VARIABLE STATE ---
+        // --- 2. ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ХОЛСТА ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
@@ -78,8 +78,10 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x05050a);
 
+            // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ ЗУМА: Отодвигаем камеру назад (с 50 до 85), 
+            // чтобы вся молекула была видна целиком без ручного зума
             camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(30, 30, 50);
+            camera.position.set(45, 45, 85);
 
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
@@ -120,14 +122,12 @@
 
             animate();
             
-            // AUTOMATIC INITIALIZATION TRIGGER: Wait 500ms for WebGL engine architecture 
-            // to warm up completely before injecting the data stream, preventing cold-start loops.
             setTimeout(() => {
                 fetchAndParseCube(ORBITAL_FILES[0]);
             }, 500);
         }
 
-        // --- 3. INTELLIGENT CUBE DATA VECTOR PARSER ---
+        // --- 3. INTELLIGENT DENSITY-STREAM CUBE PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Loading local ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -140,11 +140,8 @@
                 const text = await response.text();
                 
                 statusEl.textContent = "Scanning atomic configurations...";
-                
-                // Break text matrix cleanly into a single continuous stream of tokens
                 const tokens = text.trim().split(/\s+/);
                 
-                // Sweep past old visual elements from past engine configurations completely
                 while(atomMeshGroup.children.length > 0){
                     atomMeshGroup.remove(atomMeshGroup.children[0]);
                 }
@@ -153,7 +150,7 @@
                 let densityValuesStartPtr = 0;
                 let atomsFoundCounter = 0;
 
-                // Step 1: Scan numeric sequence to locate voxel resolution matrix fields
+                // Этап 1: Чтение шагов координатной сетки (Voxel Resolution)
                 let meshGridsLocated = 0;
                 for (let i = 2; i < tokens.length; i++) {
                     let tokenVal = tokens[i];
@@ -174,16 +171,15 @@
                     }
                 }
 
-                // Step 2: Linear Spectroscopic Element Scan (Extracting Co and Cl fields natively)
+                // Этап 2: Построение геометрии атомов с масштабированием
                 let scanPtr = densityValuesStartPtr;
                 while (scanPtr < tokens.length && atomsFoundCounter < 7) {
                     let currentInt = parseInt(tokens[scanPtr]);
                     
                     if (currentInt === 27 || currentInt === 17) {
                         atomsFoundCounter++;
-                        scanPtr += 2; // Pass valence tracker parameters
+                        scanPtr += 2; 
                         
-                        // Extract physical locations and apply real-world coordinate distance ratios
                         let posX = parseFloat(tokens[scanPtr++]) * 6.0;
                         let posY = parseFloat(tokens[scanPtr++]) * 6.0;
                         let posZ = parseFloat(tokens[scanPtr++]) * 6.0;
@@ -192,10 +188,10 @@
                         let atomRadius = 0.8;
 
                         if (currentInt === 27) {
-                            elementColor = 0x8a2be2; // Royal Purple layout for center Cobalt core node
+                            elementColor = 0x8a2be2; // Королевский фиолетовый для Кобальта
                             atomRadius = 1.4;
                         } else if (currentInt === 17) {
-                            elementColor = 0x32cd32; // Vibrant Neon Green for your 6 Chlorine fields
+                            elementColor = 0x32cd32; // Ярко-зеленый для Хлора
                             atomRadius = 1.0;
                         }
 
@@ -211,20 +207,21 @@
                     scanPtr++;
                 }
 
-                // Step 3: Advance past the trailing G09 record labels (e.g. 1 59) safely
+                // УМНЫЙ ЧИСЛОВОЙ ФИЛЬТР: Пропускаем служебные строки-маркеры.
+                // Сканируем поток, пока не найдем первое число истинной электронной плотности
+                // (дробное значение, по модулю меньшее 1.0, но не равное нулю)
                 while (scanPtr < tokens.length) {
-                    let checkVal = tokens[scanPtr];
-                    if (checkVal === "1" && tokens[scanPtr + 1] === "59") {
-                        scanPtr += 2;
-                        break;
-                    }
-                    if (checkVal.indexOf('.') !== -1 && parseFloat(checkVal) < 1.0 && parseFloat(checkVal) > -1.0) {
-                        break;
+                    let valStr = tokens[scanPtr];
+                    if (valStr.indexOf('.') !== -1) {
+                        let parsedTest = parseFloat(valStr);
+                        if (!isNaN(parsedTest) && Math.abs(parsedTest) < 1.0 && parsedTest !== 0) {
+                            break; // Граница волновой функции найдена!
+                        }
                     }
                     scanPtr++;
                 }
 
-                // Step 4: Stream trailing matrices flow straight into densities mapping memory arrays
+                // Этап 4: Запись чистой волюметрической матрицы плотности в память
                 let volumetricValuesGrid = [];
                 for (let k = scanPtr; k < tokens.length; k++) {
                     let densityValue = parseFloat(tokens[k]);
@@ -250,7 +247,7 @@
             }
         }
 
-        // --- 4. HARDWARE ISOSURFACE MATRIX CALCULATION (MARCHING CUBES) ---
+        // --- 4. МАТЕМАТИЧЕСКИЙ РАСЧЕТ ИЗОПОВЕРХНОСТЕЙ (MARCHING CUBES) ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -272,7 +269,7 @@
             const ny = currentVolumetricData.ny;
             const nz = currentVolumetricData.nz;
             
-            // Loop coordinate space discarding outer bounding frames to eliminate VMD slice artifacts
+            // Фильтрация крайних слоев вокселей для устранения плоских артефактов стенок коробки
             for (let x = 1; x < targetRes - 1; x++) {
                 for (let y = 1; y < targetRes - 1; y++) {
                     for (let z = 1; z < targetRes - 1; z++) {
