@@ -28,56 +28,13 @@
             <input type="range" id="isovalue-slider" min="0.001" max="0.1" step="0.001" value="0.02">
             <span id="slider-val" style="font-size: 11px; color: #8a9eff;">0.020</span>
         </div>
-        <div id="status">Initializing...</div>
+        <div id="status">Initializing interface...</div>
     </div>
 
     <div id="canvas-container"></div>
 
-    <!-- Smart Multi-Route CDN Loading Engine -->
     <script>
-        // Automated script injection mechanism to bypass regional CDN server freezes
-        function loadScriptChain(urls, callback) {
-            let index = 0;
-            function tryNext() {
-                if (index >= urls.length) {
-                    console.error("All library network routes failed.");
-                    return;
-                }
-                let script = document.createElement('script');
-                script.src = urls[index++];
-                script.onload = () => {
-                    if (urls.length > index) tryNext(); // Load subsequent sub-modules
-                    else callback();
-                };
-                script.onerror = () => {
-                    console.warn(`Route failed: ${script.src}. Switching network paths...`);
-                    tryNext();
-                };
-                document.head.appendChild(script);
-            }
-            tryNext();
-        }
-
-        // Parallel network arrays to ensure Three.js graphics initialization runs globally
-        const threeCoreUrls = [
-            "https://cloudflare.com",
-            "https://unpkg.com",
-            "https://jsdelivr.net"
-        ];
-        const controlsUrls = [
-            "https://cloudflare.com",
-            "https://unpkg.com",
-            "https://jsdelivr.net"
-        ];
-        const marchingCubesUrls = [
-            "https://jsdelivr.net",
-            "https://unpkg.com",
-            "https://jsdelivr.net"
-        ];
-    </script>
-
-    <script>
-        // --- 1. INSTANT DROPDOWN INITIALIZER ---
+        // --- 1. МГНОВЕННОЕ ЗАПОЛНЕНИЕ ИНТЕРФЕЙСА ОРБИТАЛЯМИ ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -102,33 +59,69 @@
         });
 
         const statusEl = document.getElementById('status');
-        statusEl.textContent = "Interface ready. Booting 3D engine...";
-                // --- 2. 3D GLOBAL RUNTIME ENGINE HANDLERS ---
+        statusEl.textContent = "Interface ready. Routing 3D engine...";
+
+        // --- 2. ПОСЛЕДОВАТЕЛЬНЫЙ ВОДОПАДНЫЙ ЗАГРУЗЧИК CDN ---
+        const cdnRoutes = [
+            [
+                "https://unpkg.com",
+                "https://unpkg.com",
+                "https://unpkg.com"
+            ],
+            [
+                "https://cloudflare.com",
+                "https://cloudflare.com",
+                "https://jsdelivr.net"
+            ]
+        ];
+
+        let routeIndex = 0;
+
+        function loadCDNRoute() {
+            if (routeIndex >= cdnRoutes.length) {
+                statusEl.textContent = "Error: All global 3D routes blocked.";
+                statusEl.style.color = "#ff4444";
+                return;
+            }
+
+            statusEl.textContent = `Connecting to 3D pipeline route ${routeIndex + 1}...`;
+            let urls = cdnRoutes[routeIndex];
+            let scriptIndex = 0;
+
+            function loadNextScript() {
+                if (scriptIndex >= urls.length) {
+                    statusEl.textContent = "3D Core loaded. Initializing canvas...";
+                    init3D();
+                    return;
+                }
+
+                let script = document.createElement('script');
+                script.src = urls[scriptIndex];
+                
+                script.onload = () => {
+                    scriptIndex++;
+                    loadNextScript(); // Загружаем следующий файл строго по порядку
+                };
+
+                script.onerror = () => {
+                    console.warn(`Route ${routeIndex + 1} failed at script ${scriptIndex}. Switching paths...`);
+                    routeIndex++;
+                    loadCDNRoute(); // При любой сетевой ошибке сбрасываем и пробуем следующий CDN целиком
+                };
+
+                document.head.appendChild(script);
+            }
+
+            loadNextScript();
+        }
+
+        // --- 3. ГЛОБАЛЬНЫЕ ТРЕХМЕРНЫЕ ПЕРЕМЕННЫЕ ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
         let activeResolution = 40;
 
-        function runLibraryLoader() {
-            statusEl.textContent = "Negotiating secure network pipelines...";
-            // Automatically sequence the fallback loading chain for the 3 graphics sub-modules
-            loadScriptChain([threeCoreUrls[0], controlsUrls[0]], () => {
-                loadScriptChain([marchingCubesUrls[0]], () => {
-                    init3D();
-                });
-            });
-        }
-
         function init3D() {
-            if (typeof THREE === 'undefined' || typeof THREE.MarchingCubes === 'undefined') {
-                statusEl.textContent = "Retrying fallback server routes...";
-                // Fallback attempt: Force backup unpkg mirrors to inject objects if primary failed
-                loadScriptChain([threeCoreUrls[1], controlsUrls[1], marchingCubesUrls[1]], () => {
-                    setTimeout(init3D, 500);
-                });
-                return;
-            }
-
             const container = document.getElementById('canvas-container');
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x05050a);
@@ -140,8 +133,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(window.devicePixelRatio);
             container.appendChild(renderer.domElement);
-
-            controls = new THREE.OrbitControls(camera, renderer.domElement);
+                        controls = new THREE.OrbitControls(camera, renderer.domElement);
             controls.enableDamping = true;
             controls.dampingFactor = 0.05;
 
@@ -181,7 +173,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]);
         }
 
-        // --- 3. DROPBOX DATA FETCH PIPE & GRID METRICS PARSER ---
+        // --- 4. СЕТЕВОЙ ПОТОК И ПАРСЕР ТЕКСТОВЫХ МАТРИЦ .CUB ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -196,16 +188,11 @@
                 statusEl.textContent = "Parsing cube data matrix...";
                 const lines = text.split('\n');
                 
-                // Securely isolate the header metrics array split lengths
-                const atomLine = lines[2].trim().split(/\s+/);
-                const xLine = lines[3].trim().split(/\s+/);
-                const yLine = lines[4].trim().split(/\s+/);
-                const zLine = lines[5].trim().split(/\s+/);
-
-                const atomCount = parseInt(atomLine[0]);
-                const countX = parseInt(xLine[0]);
-                const countY = parseInt(yLine[0]);
-                const countZ = parseInt(zLine[0]);
+                // Исправленный построчный парсинг заголовков геометрической сетки
+                const atomCount = parseInt(lines[2].trim().split(/\s+/)[0]);
+                const countX = parseInt(lines[3].trim().split(/\s+/)[0]);
+                const countY = parseInt(lines[4].trim().split(/\s+/)[0]);
+                const countZ = parseInt(lines[5].trim().split(/\s+/)[0]);
                 
                 let dataStartLine = 6 + Math.abs(atomCount);
                 let values = [];
@@ -236,7 +223,7 @@
             }
         }
 
-        // --- 4. SURFACE CONTOUR CALCULATOR (MARCHING CUBES) ---
+        // --- 5. АЛГОРИТМ MARCHING CUBES ДЛЯ ТРЕХМЕРНЫХ ЛОПАСТЕЙ ---
         function updateIsosurface() {
             if (!currentVolumetricData || !scene) return;
             
@@ -282,8 +269,8 @@
             }
         }
         
-        // Execute loader engine sequence
-        runLibraryLoader();
+        // Запуск последовательной проверки и загрузки CDN сетей
+        loadCDNRoute();
     </script>
 </body>
 </html>
