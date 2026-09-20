@@ -121,10 +121,10 @@
             });
 
             animate();
-            fetchAndParseCube(ORBITAL_FILES[0]);
+            fetchAndParseCube(ORBITAL_FILES);
         }
 
-        // --- 3. DROPBOX FETCH PIPE & INDESTRUCTIBLE CLEAN ROW PARSER ---
+        // --- 3. DROPBOX FETCH PIPE & INDESTRUCTIBLE TOKEN STREAM PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -138,34 +138,46 @@
                 
                 statusEl.textContent = "Parsing cube data matrix...";
                 
-                // Completely clean empty gaps and isolate legitimate text rows safely
-                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+                // Convert the entire file into a single flat continuous stream of words and numbers
+                const tokens = text.trim().split(/\s+/);
                 
-                if (lines.length < 6) throw new Error("File structure invalid.");
-
-                // Isolate spatial counts securely using array rows
-                const atomCount = parseInt(lines[2].split(/\s+/)[0]);
-                const countX = parseInt(lines[3].split(/\s+/)[0]);
-                const countY = parseInt(lines[4].split(/\s+/)[0]);
-                const countZ = parseInt(lines[5].split(/\s+/)[0]);
-                
-                let dataStartLine = 6 + Math.abs(atomCount);
-                let values = [];
-                
-                for (let i = dataStartLine; i < lines.length; i++) {
-                    let lineVals = lines[i].split(/\s+/);
-                    for (let j = 0; j < lineVals.length; j++) {
-                        if (lineVals[j] !== "") {
-                            let parsedFloat = parseFloat(lineVals[j]);
-                            if (!isNaN(parsedFloat)) {
-                                values.push(parsedFloat);
-                            }
-                        }
+                // Step 1: Skip comment labels by scanning for the first valid integer (atom count)
+                let ptr = 0;
+                let atomCount = NaN;
+                while (ptr < tokens.length) {
+                    let val = parseInt(tokens.at(ptr));
+                    if (!isNaN(val) && tokens.at(ptr).indexOf('.') === -1) {
+                        atomCount = val;
+                        break;
                     }
+                    ptr++;
+                }
+                
+                if (isNaN(atomCount)) throw new Error("Missing atom count metadata header.");
+                
+                // Step 2: Read volumetric grid counts cleanly from the stream
+                // Axis rows consist of voxel count followed by X, Y, Z vector increments (skip 3)
+                ptr = ptr + 1; const countX = Math.abs(parseInt(tokens.at(ptr)));
+                ptr = ptr + 4; const countY = Math.abs(parseInt(tokens.at(ptr)));
+                ptr = ptr + 4; const countZ = Math.abs(parseInt(tokens.at(ptr)));
+                
+                // Step 3: Skip atomic coordinate sections (each atom has 5 tokens: number, charge, x, y, z)
+                ptr = ptr + 4;
+                let totalAtoms = Math.abs(atomCount);
+                ptr = ptr + (totalAtoms * 5);
+                
+                // Step 4: Extract all remaining raw numeric data as densities array map
+                let values = [];
+                while (ptr < tokens.length) {
+                    let num = parseFloat(tokens.at(ptr));
+                    if (!isNaN(num)) {
+                        values.push(num);
+                    }
+                    ptr++;
                 }
                 
                 currentVolumetricData = {
-                    nx: Math.abs(countX), ny: Math.abs(countY), nz: Math.abs(countZ),
+                    nx: countX, ny: countY, nz: countZ,
                     data: values
                 };
                 
