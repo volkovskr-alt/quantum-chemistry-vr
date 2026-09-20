@@ -33,13 +33,13 @@
 
     <div id="canvas-container"></div>
 
-    <!-- Reads ALL 3D engine assets locally from your own repository folder -->
+    <!-- Чтение библиотек движка строго локально из вашего репозитория -->
     <script src="js/three.min.js"></script>
     <script src="js/OrbitControls.js"></script>
     <script src="js/MarchingCubes.js"></script>
 
     <script>
-        // --- 1. DROPDOWN MATRIX INITIALIZER ---
+        // --- 1. ЗАПОЛНЕНИЕ ВЫПАДАЮЩЕГО СПИСКА ОРБИТАЛЕЙ ---
         const ORBITAL_FILES = [
             "b1h.cub", "b1e.cub",
             "b2h.cub", "b2e.cub",
@@ -66,6 +66,7 @@
         const statusEl = document.getElementById('status');
         statusEl.textContent = "Autonomous core active. Loading data stream...";
 
+        // --- 2. ИНИЦИАЛИЗАЦИЯ 3D СЦЕНЫ ---
         let scene, camera, renderer, controls;
         let posMaterial, negMaterial, marchingCubesController;
         let currentVolumetricData = null;
@@ -123,7 +124,7 @@
             fetchAndParseCube(ORBITAL_FILES[0]);
         }
 
-        // --- 3. DROPBOX DATA FETCH PIPE & CORRECTED ARRAY PARSER ---
+        // --- 3. DROPBOX DATA FETCH PIPE & EXTRA-RESILIENT CUBE PARSER ---
         async function fetchAndParseCube(fileName) {
             statusEl.textContent = `Fetching ${fileName.toUpperCase()}...`;
             statusEl.style.color = '#00ffcc';
@@ -136,22 +137,29 @@
                 const text = await response.text();
                 
                 statusEl.textContent = "Parsing cube data matrix...";
-                const lines = text.split('\n');
+                // Split lines, trimming spaces cleanly from every single string row
+                const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
                 
-                // Fixed numerical array extraction mapping matching standard cube file format
-                const atomCount = parseInt(lines[2].trim().split(/\s+/)[0]);
-                const countX = parseInt(lines[3].trim().split(/\s+/)[0]);
-                const countY = parseInt(lines[4].trim().split(/\s+/)[0]);
-                const countZ = parseInt(lines[5].trim().split(/\s+/)[0]);
+                if (lines.length < 6) throw new Error("File formatting too short.");
+
+                // Read structural dimensions from fixed Gaussian header index arrays
+                const atomCount = parseInt(lines[2].split(/\s+/)[0]);
+                const countX = parseInt(lines[3].split(/\s+/)[0]);
+                const countY = parseInt(lines[4].split(/\s+/)[0]);
+                const countZ = parseInt(lines[5].split(/\s+/)[0]);
                 
+                // Calculate data section row entry point skipping comment logs and grids arrays
                 let dataStartLine = 6 + Math.abs(atomCount);
                 let values = [];
                 
                 for (let i = dataStartLine; i < lines.length; i++) {
-                    let lineVals = lines[i].trim().split(/\s+/);
+                    let lineVals = lines[i].split(/\s+/);
                     for (let j = 0; j < lineVals.length; j++) {
-                        if (lineVals[j] !== "" && lineVals[j] !== undefined) {
-                            values.push(parseFloat(lineVals[j]));
+                        if (lineVals[j] !== "") {
+                            let parsedFloat = parseFloat(lineVals[j]);
+                            if (!isNaN(parsedFloat)) {
+                                values.push(parsedFloat);
+                            }
                         }
                     }
                 }
